@@ -4,7 +4,7 @@
 // from connectionHandler for testability.
 //
 // Depends on: @cozy/shared (Position, POSITION_MIN, POSITION_MAX)
-// Used by:    socket/connectionHandler.ts, socket/chatHandler.ts
+// Used by:    socket/connectionHandler.ts, socket/chatHandler.ts, index.ts
 
 import type { Position } from "@cozy/shared";
 import { POSITION_MIN, POSITION_MAX } from "@cozy/shared";

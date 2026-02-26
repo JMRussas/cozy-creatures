@@ -25,118 +25,140 @@
 ```
 cozy-creatures/
 ├── pnpm-workspace.yaml
-├── package.json                    # root scripts
+├── package.json                    # root scripts (pnpm dev, build, test)
 ├── tsconfig.base.json              # shared TS config
+├── docker-compose.yml              # LiveKit SFU (voice chat)
+├── vitest.workspace.ts             # test workspace (server + shared + client)
 │
 ├── apps/
-│   └── client/                     # React + Vite + R3F
-│       ├── package.json
-│       ├── vite.config.ts
-│       ├── index.html
+│   └── client/                     # React + Vite + R3F (port 5173)
+│       ├── vite.config.ts          # proxy /api + /socket.io → server
 │       └── src/
 │           ├── main.tsx
-│           ├── App.tsx
+│           ├── App.tsx             # Join form + InRoomView
+│           ├── config.ts           # Client visual/gameplay constants
 │           ├── scene/              # Three.js scene, camera, lighting
 │           │   ├── IsometricScene.tsx
+│           │   ├── CameraRig.tsx
 │           │   ├── Ground.tsx
 │           │   └── Lighting.tsx
-│           ├── creatures/          # Creature rendering + animation
-│           │   ├── CreatureModel.tsx
-│           │   ├── CreatureAnimator.tsx
-│           │   └── CreatureRegistry.ts
-│           ├── ui/                 # React UI components
-│           │   ├── ChatPanel.tsx
-│           │   ├── EmoteBar.tsx
-│           │   ├── RoomBrowser.tsx
-│           │   ├── SkinShop.tsx
-│           │   ├── Inventory.tsx
-│           │   ├── MiniProfile.tsx
-│           │   ├── VoiceControls.tsx  # Mic/deafen toggles, settings
-│           │   └── Layout.tsx
-│           ├── networking/         # Socket.io client
-│           │   ├── socket.ts
-│           │   ├── useRoom.ts
-│           │   ├── useChat.ts
-│           │   └── useVoice.ts     # LiveKit voice connection
+│           ├── creatures/          # glTF models, animations, shaders, accessories, particles
+│           │   ├── Creature.tsx              # Local player creature
+│           │   ├── CreatureModel.tsx         # glTF loader + animation + skin rendering
+│           │   ├── CreatureFallback.tsx      # Procedural fallback (Suspense)
+│           │   ├── CreatureShadow.tsx        # Shared shadow circle
+│           │   ├── RemotePlayers.tsx         # Maps players → RemoteCreature
+│           │   ├── RemoteCreature.tsx        # Remote player with interpolation
+│           │   ├── overlays/
+│           │   │   ├── ChatBubble.tsx        # drei Html overlay
+│           │   │   ├── SpeakingIndicator.tsx # Pulsing torus above head
+│           │   │   └── AudioRangeRing.tsx    # Spatial audio range ring
+│           │   ├── shaders/
+│           │   │   └── hslShader.ts          # HSL color-shift via onBeforeCompile
+│           │   ├── accessories/
+│           │   │   ├── boneUtils.ts          # Bone search utilities
+│           │   │   ├── accessoryFactories.ts # 10 procedural accessory types
+│           │   │   └── AccessoryAttacher.tsx # Bone attachment component
+│           │   └── effects/
+│           │       └── ParticleEffect.tsx    # GPU particles (4 effect types)
+│           ├── ui/                 # React UI components (feature subfolders)
+│           │   ├── chat/
+│           │   │   └── ChatPanel.tsx         # Side panel + message list
+│           │   ├── voice/
+│           │   │   ├── VoiceControls.tsx     # Mic/deafen toggles
+│           │   │   └── VoiceSettings.tsx     # Mic selector, volume, PTT
+│           │   ├── skins/
+│           │   │   ├── SkinShop.tsx          # Full-screen skin browser
+│           │   │   ├── SkinInventory.tsx     # Owned skins grid
+│           │   │   ├── SkinPreview.tsx       # 3D skin turntable preview
+│           │   │   └── RarityBadge.tsx       # Rarity pill badge
+│           │   └── creatures/
+│           │       ├── CreaturePicker.tsx    # 3x2 creature selection grid
+│           │       └── CreaturePreview.tsx   # 3D turntable preview
+│           ├── networking/
+│           │   ├── socket.ts                 # Typed Socket.io singleton
+│           │   ├── NetworkSync.tsx           # Throttled position sync (~10Hz)
+│           │   ├── useVoice.ts               # LiveKit Room lifecycle
+│           │   └── SpatialAudioManager.tsx   # Web Audio PannerNode spatial
 │           ├── stores/             # Zustand stores
-│           │   ├── playerStore.ts
-│           │   ├── roomStore.ts
-│           │   ├── chatStore.ts
-│           │   ├── voiceStore.ts   # Voice state (muted, spatial, etc.)
-│           │   └── inventoryStore.ts
-│           ├── input/              # Click-to-move, keyboard
+│           │   ├── playerStore.ts            # Local player position/state
+│           │   ├── roomStore.ts              # Room state + socket listeners
+│           │   ├── chatStore.ts              # Messages + bubble lifecycle
+│           │   ├── voiceStore.ts             # Voice state + LiveKit sync
+│           │   └── skinStore.ts              # Inventory, equip, REST fetch
+│           ├── input/
 │           │   └── useMovement.ts
-│           └── assets/             # Static assets (textures, icons)
+│           └── utils/
+│               └── math.ts                   # lerpAngle
 │
-├── packages/
-│   ├── server/                     # Node.js + Express + Socket.io
-│   │   ├── package.json
-│   │   ├── tsconfig.json
+├── Packages/
+│   ├── server/                     # Express + Socket.io (port 3001)
 │   │   └── src/
-│   │       ├── index.ts
-│   │       ├── config.ts
-│   │       ├── socket/             # Socket.io event handlers
-│   │       │   ├── roomHandler.ts
-│   │       │   ├── chatHandler.ts
-│   │       │   └── movementHandler.ts
-│   │       ├── rooms/              # Room management
+│   │       ├── index.ts            # Server entry + middleware
+│   │       ├── config.ts           # Env-var-driven config
+│   │       ├── socket/
+│   │       │   ├── connectionHandler.ts  # join/move/leave/equip-skin/disconnect
+│   │       │   ├── chatHandler.ts        # chat:message, ring buffer history
+│   │       │   ├── voiceHandler.ts       # voice:state broadcast
+│   │       │   ├── validation.ts         # sanitize, rate limit, clamp
+│   │       │   ├── profanityFilter.ts    # Word-list filter
+│   │       │   └── types.ts              # TypedServer, TypedSocket
+│   │       ├── rooms/
 │   │       │   ├── RoomManager.ts
 │   │       │   └── Room.ts
-│   │       ├── auth/               # Auth (simple → OAuth)
-│   │       │   └── auth.ts
-│   │       ├── db/                 # Database layer
-│   │       │   ├── schema.ts
-│   │       │   ├── migrations/
-│   │       │   └── queries/
-│   │       └── api/                # REST endpoints
-│   │           ├── rooms.ts
-│   │           ├── players.ts
-│   │           ├── skins.ts
-│   │           └── voice.ts       # LiveKit token generation
+│   │       ├── db/
+│   │       │   ├── database.ts           # SQLite singleton (better-sqlite3, WAL)
+│   │       │   ├── playerQueries.ts      # Player CRUD + equipped skin
+│   │       │   └── inventoryQueries.ts   # Skin inventory CRUD
+│   │       ├── api/
+│   │       │   ├── voice.ts              # POST /api/voice/token (LiveKit JWT)
+│   │       │   └── skins.ts             # GET/POST /api/skins (catalog, inventory, equip)
+│   │       └── auth/               # Auth (simple → OAuth)
 │   │
-│   └── shared/                     # Shared TypeScript types
-│       ├── package.json
-│       ├── tsconfig.json
+│   └── shared/                     # @cozy/shared — types + constants
 │       └── src/
-│           ├── index.ts
+│           ├── index.ts            # Barrel re-export
 │           ├── types/
-│           │   ├── player.ts
-│           │   ├── creature.ts
-│           │   ├── room.ts
-│           │   ├── chat.ts
-│           │   ├── skin.ts
-│           │   └── events.ts       # Socket event type definitions
+│           │   ├── player.ts       # Player, Position, PlayerProfile
+│           │   ├── creature.ts     # CreatureDefinition
+│           │   ├── room.ts         # RoomBase, RoomConfig, RoomState
+│           │   ├── chat.ts         # ChatMessage
+│           │   ├── voice.ts        # VoiceState, VoiceTokenRequest/Response
+│           │   ├── skin.ts         # SkinDefinition, SkinSet, SkinRarity, InventoryItem
+│           │   └── events.ts       # ClientToServerEvents, ServerToClientEvents, SocketData
 │           └── constants/
-│               ├── creatures.ts    # Creature IDs, base stats
-│               └── rooms.ts        # Room IDs, configs
+│               ├── config.ts       # Numeric limits, rate limits, voice constants
+│               ├── creatures.ts    # 6 creatures (otter, red-panda, sloth, chipmunk, possum, pangolin)
+│               ├── rooms.ts        # 3 rooms (cozy-cafe, rooftop-garden, starlight-lounge)
+│               └── skins.ts        # 30 skins, 4 sets, 4 rarities
 │
-└── assets/                         # Source 3D models (glTF)
-    ├── creatures/
-    │   ├── cat/
-    │   ├── fox/
-    │   ├── bunny/
-    │   └── frog/
-    ├── environments/
-    │   ├── cozy-cafe/
-    │   └── rooftop-garden/
-    └── props/
+├── tools/
+│   └── convert_creatures.py        # Blender FBX→glTF batch converter
+│
+└── apps/client/public/assets/      # Static creature models (served by Vite)
+    └── creatures/
+        ├── otter/model.glb
+        ├── red-panda/model.glb
+        ├── sloth/model.glb
+        ├── chipmunk/model.glb
+        ├── possum/model.glb
+        └── pangolin/model.glb
 ```
 
 ---
 
-## STAGE 0 — Project Foundation
+## STAGE 0 — Project Foundation ✅
 > **Goal:** Monorepo running, both client and server start with one command.
-> **Duration estimate:** Half a day
 
 ### Tasks
-- [ ] Initialize pnpm monorepo with workspace config
-- [ ] Scaffold `apps/client` with Vite + React 19 + TypeScript
-- [ ] Scaffold `packages/server` with Express + TypeScript + ts-node-dev
-- [ ] Scaffold `packages/shared` with TypeScript types
-- [ ] Configure path aliases so client and server import from `@cozy/shared`
-- [ ] Root `pnpm dev` starts both client (5173) and server (3001) in parallel
-- [ ] Add `.gitignore`, `CLAUDE.md`, `.claude/` docs
-- [ ] Vite proxy: `/api` and `/socket.io` → server
+- [x] Initialize pnpm monorepo with workspace config
+- [x] Scaffold `apps/client` with Vite + React 19 + TypeScript
+- [x] Scaffold `Packages/server` with Express + TypeScript + tsx
+- [x] Scaffold `Packages/shared` with TypeScript types
+- [x] Configure path aliases so client and server import from `@cozy/shared`
+- [x] Root `pnpm dev` starts both client (5173) and server (3001) in parallel
+- [x] Add `.gitignore`, `CLAUDE.md`, `.claude/` docs
+- [x] Vite proxy: `/api` and `/socket.io` → server
 
 ### Deliverable
 `pnpm dev` opens a browser with a blank React page. Server logs "listening on 3001".
@@ -188,20 +210,19 @@ Open 2-3 browser tabs → each sees the others' creatures. Move one → others s
 
 ---
 
-## STAGE 3 — Chat System
+## STAGE 3 — Chat System ✅
 > **Goal:** Text chat in rooms with chat bubbles over creatures.
-> **Duration estimate:** 1-2 days
 
 ### Tasks
-- [ ] Define shared chat events: `chatMessage`, `chatHistory`
-- [ ] Server `chatHandler`: receive message, broadcast to room, store recent history
-- [ ] Client `ChatPanel.tsx`: message list, input field, send button
-- [ ] `chatStore` with message history per room
-- [ ] Chat bubbles above creatures (HTML overlay via drei's `Html` component)
-- [ ] Chat bubble auto-fade after configurable duration
-- [ ] Basic profanity filter (server-side, word list)
-- [ ] Message length limit (from shared config)
-- [ ] Scroll-to-bottom behavior, unread indicator
+- [x] Define shared chat events: `chat:message`, `chat:history`
+- [x] Server `chatHandler`: receive message, broadcast to room, in-memory ring buffer history (50 msgs/room)
+- [x] Client `ChatPanel.tsx`: message list, input field, send button, Escape to close
+- [x] `chatStore` with message history, bubble lifecycle (setTimeout-based), unread count
+- [x] Chat bubbles above creatures (drei `Html` component in creature groups)
+- [x] Chat bubble auto-fade after configurable duration (`CHAT_BUBBLE_DURATION_MS`)
+- [x] Profanity filter (server-side, word-list replacement)
+- [x] Message length limit (`MAX_CHAT_MESSAGE` from shared config)
+- [x] Scroll-to-bottom behavior, unread indicator
 
 ### Deliverable
 Type a message → it appears in the chat panel AND as a bubble over your creature. Other players see it.
@@ -212,50 +233,49 @@ Type a message → it appears in the chat panel AND as a bubble over your creatu
 
 ---
 
-## STAGE 3.5 — Voice Chat
+## STAGE 3.5 — Voice Chat ✅
 > **Goal:** Players can talk to each other in rooms via voice. Spatial audio mode available.
-> **Duration estimate:** 2-3 days
 
 ### Tech: LiveKit (Self-Hosted SFU)
 
 LiveKit is an open-source WebRTC SFU that handles media routing, encoding, and room management.
 The client uses `livekit-client` SDK; the server generates access tokens via `livekit-server-sdk`.
-LiveKit runs as a separate service alongside the Express server.
+LiveKit runs as a Docker Compose service alongside the Express server.
 
 ### Tasks
 
 #### 3.5A — LiveKit Infrastructure
-- [ ] Add LiveKit as a Docker Compose service (or install binary for local dev)
-- [ ] Configure LiveKit server (port, API key/secret in env vars)
-- [ ] Add `livekit-server-sdk` to `@cozy/server` for token generation
-- [ ] REST endpoint: `POST /api/voice/token` — generates a LiveKit access token scoped to the player's current room
-- [ ] Token includes player ID and room name as metadata
+- [x] Add LiveKit as a Docker Compose service (port 7880 WS, 7881 TCP, 7882 UDP)
+- [x] Configure LiveKit server (API key/secret in env vars, dev key pair: `devkey:secret`)
+- [x] Add `livekit-server-sdk` to `@cozy/server` for token generation
+- [x] REST endpoint: `POST /api/voice/token` — generates a LiveKit access token scoped to the player's current room
+- [x] Token includes player ID and room name as metadata
 
 #### 3.5B — Client Voice Connection
-- [ ] Add `livekit-client` to `@cozy/client`
-- [ ] `voiceStore` (Zustand): connection state, muted/deafened, speaking participants, spatial mode toggle
-- [ ] `useVoice.ts` hook: connect to LiveKit room, publish/unpublish audio track
-- [ ] On room join → fetch token from `/api/voice/token` → connect to LiveKit room
-- [ ] On room leave → disconnect from LiveKit room
-- [ ] Handle reconnection (LiveKit SDK handles most of this)
+- [x] Add `livekit-client` to `@cozy/client`
+- [x] `voiceStore` (Zustand): connection state, muted/deafened, speaking participants, spatial mode toggle
+- [x] `useVoice.ts` hook: connect to LiveKit room, publish/unpublish audio track
+- [x] On room join → fetch token from `/api/voice/token` → connect to LiveKit room
+- [x] On room leave → disconnect from LiveKit room
+- [x] Handle reconnection (LiveKit SDK handles most of this)
 
 #### 3.5C — Voice UI
-- [ ] Mic toggle button (mute/unmute) in HUD — prominent, always visible
-- [ ] Deafen toggle (stop hearing others)
-- [ ] Speaking indicator on creatures (glow, icon, or animated ring above head)
-- [ ] Speaking indicator in player list / chat panel
-- [ ] Push-to-talk option (configurable keybind, default: V)
-- [ ] Voice settings panel: input device selection, input volume, output volume
-- [ ] Visual feedback: mic level meter in settings
+- [x] Mic toggle button (mute/unmute) in HUD — prominent, always visible
+- [x] Deafen toggle (stop hearing others) via `RemoteTrackPublication.setEnabled()`
+- [x] Speaking indicator on creatures (pulsing green torus above head — `SpeakingIndicator.tsx`)
+- [x] Speaking indicator in chat panel (animated dots)
+- [x] Push-to-talk option (configurable keybind, default: V)
+- [x] Voice settings panel (`VoiceSettings.tsx`): input device selection, input volume, output volume
+- [x] Visual feedback: mic level meter in settings
 
 #### 3.5D — Spatial Audio
-- [ ] Default mode: room-wide (all participants at equal volume)
-- [ ] Spatial mode toggle in voice settings
-- [ ] When spatial enabled: use Web Audio API `PannerNode` to position each remote audio source
-- [ ] Map creature world position → audio listener position (update on movement)
-- [ ] Configurable falloff: `VOICE_SPATIAL_MIN_DISTANCE`, `VOICE_SPATIAL_MAX_DISTANCE` in shared config
-- [ ] Players beyond max distance are silent; between min/max follows inverse distance
-- [ ] Visual indicator: subtle audio range ring around player (only visible to self, only in spatial mode)
+- [x] Default mode: room-wide (all participants at equal volume)
+- [x] Spatial mode toggle in voice settings
+- [x] When spatial enabled: Web Audio API `PannerNode` per remote participant (`SpatialAudioManager.tsx`)
+- [x] Map creature world position → audio listener position (update via `useFrame`)
+- [x] Configurable falloff: `VOICE_SPATIAL_MIN_DISTANCE`, `VOICE_SPATIAL_MAX_DISTANCE` in shared config
+- [x] Players beyond max distance are silent; between min/max follows inverse distance (HRTF panning)
+- [x] Visual indicator: `AudioRangeRing.tsx` — ring at spatial max distance (only visible to self, only in spatial mode)
 
 ### Shared Types (`@cozy/shared`)
 - [ ] `VoiceState`: `{ muted: boolean, deafened: boolean, speaking: boolean, spatialEnabled: boolean }`
@@ -273,77 +293,99 @@ Join a room → click mic button → talk to other players. Toggle spatial audio
 
 ---
 
-## STAGE 4 — Creature System
+## STAGE 4 — Creature System ✅
 > **Goal:** Multiple creature types with proper models, animations, and selection.
-> **Duration estimate:** 3-5 days
 
 ### Tasks
 
-#### 4A — Asset Pipeline (can start during Stage 1-2)
-- [ ] Source or create 4-6 base creature models (cat, fox, bunny, frog, axolotl, mushroom)
-- [ ] Each creature needs: idle, walk, sit, wave animations (minimum)
-- [ ] Export as glTF with named animation clips
-- [ ] Optimize: < 2000 triangles per creature, single texture atlas
-- [ ] Place in `assets/creatures/<name>/model.glb`
+#### 4A — Asset Pipeline
+- [x] Sourced Cute Zoo 4 (SURIYUN) — 6 low-poly creature models with 5+ animation clips each
+- [x] Creatures: otter, red-panda, sloth, chipmunk, possum, pangolin
+- [x] Blender 4.4 batch converter (`tools/convert_creatures.py`): FBX → glTF with animations
+- [x] Models placed in `apps/client/public/assets/creatures/<id>/model.glb`
 
 #### 4B — Creature Rendering
-- [ ] `CreatureModel.tsx`: loads glTF, plays animations via `useAnimations`
-- [ ] `CreatureRegistry.ts`: maps creature IDs to model paths + metadata
-- [ ] Animation state machine: idle ↔ walk ↔ sit, emote overlays
-- [ ] Smooth animation blending (crossfade between clips)
+- [x] `CreatureModel.tsx`: glTF loader via `useGLTF` + `SkeletonUtils.clone()` (not `scene.clone()`)
+- [x] Imperative `setAnimation()` handle exposed via `useImperativeHandle`
+- [x] Smooth animation crossfade (`ANIMATION_CROSSFADE_DURATION`)
+- [x] `CreatureFallback.tsx`: procedural capsule mesh for Suspense fallback
+- [x] `CreatureShadow.tsx`: shared shadow circle extracted from Creature + RemoteCreature
 
 #### 4C — Creature Selection UI
-- [ ] Creature picker screen (shown on first visit or from profile)
-- [ ] 3D preview of each creature with turntable rotation
-- [ ] Selection saved to player profile
-- [ ] Creature type synced over network (included in `playerJoin` event)
+- [x] `CreaturePicker.tsx`: 3x2 grid of creature cards with accent border on selection
+- [x] `CreaturePreview.tsx`: small R3F Canvas with auto-rotating creature + targeted preload
+- [x] Selection saved to localStorage (`cozy-creatures:creature`)
+- [x] Creature type synced over network (included in `player:join` event)
+
+#### 4D — Persistence
+- [x] SQLite via better-sqlite3 (WAL mode) — `db/database.ts` singleton
+- [x] `db/playerQueries.ts`: `findPlayerByName`, `createPlayer`, `updatePlayerOnJoin`
+- [x] Name-based soft matching (pre-auth): returning players reuse their DB row
 
 ### Deliverable
-Each player picks a creature type. Different players can be different creatures. All animate correctly.
+Each player picks a creature type. Different players can be different creatures. All animate correctly. Creature choice persists across sessions.
 
 ### Parallelism
-- **4A (asset creation)** is fully parallel with all code work — can start Day 1
-- **4B (rendering)** depends on having at least 1 model from 4A
-- **4C (UI)** depends on 4B
+- **4A (asset pipeline)** ran parallel with code work
+- **4B (rendering)** depended on at least 1 model from 4A
+- **4C (UI)** depended on 4B
+- **4D (persistence)** ran parallel with 4B/4C
 
 ---
 
-## STAGE 5 — Skin & Collection System
+## STAGE 5 — Skin & Collection System ✅
 > **Goal:** Creatures have collectible skins with rarity tiers. Inventory and shop UI.
-> **Duration estimate:** 3-5 days
 
 ### Tasks
 
-#### 5A — Data Model
-- [ ] Shared types: `Skin`, `SkinSet`, `Rarity`, `PlayerInventory`
-- [ ] Skin definition format: creature base + color palette + accessory meshes + effects
-- [ ] Rarity tiers: Common, Rare, Epic, Legendary
-- [ ] Skin sets: themed collections (e.g., "Cozy Cafe", "Starlight", "Garden Party")
-- [ ] Database schema: `skins`, `player_inventory`, `skin_sets`
+#### 5A — Shared Types & Constants
+- [x] `types/skin.ts`: `SkinRarity`, `SkinColorShift`, `SkinAccessory`, `SkinParticleEffect`, `SkinDefinition`, `SkinSet`, `InventoryItem`, `RarityInfo`
+- [x] `constants/skins.ts`: 30 skin definitions (5 per creature: 2 Common + 1 Rare + 1 Epic + 1 Legendary)
+- [x] 4 themed sets: cozy-cafe, starlight, garden-party, frost-festival
+- [x] 4 rarity tiers with color/glow metadata; `DEFAULT_SKIN_IDS` (auto-granted Commons)
+- [x] Tests: all skins reference valid creatures/sets/rarities, colorShift bounds, particles only on legendary
 
-#### 5B — Backend
-- [ ] REST endpoints: GET /api/skins, GET /api/inventory, POST /api/inventory/equip
-- [ ] Skin unlock logic (for now: grant defaults, admin can give skins)
-- [ ] Equipped skin included in `playerJoin` network event
+#### 5B — HSL Shader System
+- [x] `hslShader.ts`: `onBeforeCompile` GLSL injection — RGB→HSL→shift→RGB after `#include <map_fragment>`
+- [x] Material cloning (glTF materials are shared), `customProgramCacheKey` for cache isolation
+- [x] Uniforms stored on `material.userData.hslUniforms` for live updates
+- [x] `CreatureModel.tsx`: applies `applyHSLShift()` to all `MeshStandardMaterial` instances when skin has `colorShift`
 
-#### 5C — Client Rendering
-- [ ] Skin system: swap color palette on creature material
-- [ ] Accessory attachment points on creature models (hat, back, held item)
-- [ ] Legendary skins: subtle particle effects (sparkles, glow)
-- [ ] Other players see your equipped skin
+#### 5C — Accessory System
+- [x] `boneUtils.ts`: `findBoneByPattern()` — case-insensitive bone search using Unity-style bone naming
+- [x] `accessoryFactories.ts`: 10 procedural accessory types from Three.js primitives (top-hat, beret, crown, scarf, flower-crown, backpack, cape, nightcap, tiny-shield, rose)
+- [x] `AccessoryAttacher.tsx`: imperatively attaches accessories to creature bones via `useEffect` with cleanup/disposal
+- [x] `CreatureModel.tsx`: renders `AccessoryAttacher` when skin has accessories
 
-#### 5D — Shop & Inventory UI
-- [ ] `Inventory.tsx`: grid of owned skins, equip button, rarity badges
-- [ ] `SkinShop.tsx`: browse available skins by set, preview on your creature
-- [ ] Skin preview: 3D turntable with the skin applied to your creature
-- [ ] Rarity visual treatment: border colors, shimmer effect on Legendary
+#### 5D — Particle Effects (Legendary)
+- [x] `ParticleEffect.tsx`: GPU particles via `Points` + custom `ShaderMaterial`, `AdditiveBlending`
+- [x] 4 effect types: sparkle (random sphere), glow (orbiting ring), flame (upward turbulence), hearts (sinusoidal sway)
+- [x] 32-48 particles per effect, updated per frame in `useFrame`
+- [x] `CreatureModel.tsx`: renders `ParticleEffect` when skin has `particleEffect`
+
+#### 5E — Backend (DB + API + Socket)
+- [x] `player_inventory` SQLite table + `equipped_skin` column on players
+- [x] `inventoryQueries.ts`: `getPlayerInventory`, `addToInventory`, `playerOwnsSkin`, `grantDefaultSkins` (idempotent)
+- [x] `api/skins.ts`: `GET /api/skins` (catalog), `GET /api/skins/inventory/:playerId`, `POST /api/skins/equip`
+- [x] `connectionHandler.ts`: `player:equip-skin` socket event with validation (ownership, creature match), `player:skin-changed` broadcast
+- [x] `player:join`: grants default skins, loads equipped skin from DB, clears stale skin on creature type change
+
+#### 5F — Client UI
+- [x] `skinStore.ts`: Zustand store — inventory, equippedSkinId, equipSkin (socket + 5s timeout + connected guard), fetchInventory (REST)
+- [x] `SkinShop.tsx`: full-screen modal with "My Skins" / "All Skins" tabs, set filter, rarity-sorted grid, 3D preview, Escape/backdrop close, ARIA
+- [x] `SkinInventory.tsx`: owned skins grid filtered by creature type, equip/unequip, useMemo for derived collections
+- [x] `SkinPreview.tsx`: R3F Canvas turntable with full skin (HSL + accessories + particles)
+- [x] `RarityBadge.tsx`: rarity pill badge with color, legendary pulse (`motion-reduce:animate-none`)
+- [x] `roomStore.ts`: `player:skin-changed` listener for real-time remote skin sync
+- [x] `Creature.tsx` / `RemoteCreature.tsx`: pass skinId to `CreatureModel` with runtime `in SKINS` guard
 
 ### Deliverable
-Players can browse skins, equip them, and see each other's skins. Skins range from simple recolors (Common) to elaborate accessory + effect combos (Legendary).
+Players can browse skins, equip them, and see each other's skins in real time. Skins range from simple recolors (Common) to elaborate HSL shift + accessory + particle combos (Legendary). Inventory persists across sessions.
 
 ### Parallelism
-- **5A (types) + 5B (backend)** can run parallel with **5C (rendering) + 5D (UI)**
-- **Skin art creation** is parallel with all code work
+- **5A** first (foundation types/constants)
+- **5B + 5C + 5D + 5E** in parallel
+- **5F** last (needs everything)
 
 ---
 
@@ -455,41 +497,52 @@ Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, cha
 ```
 TIMELINE (not to scale)
 ═══════════════════════════════════════════════════════════
+Stages 0-5 complete. 352 tests passing across 33 files.
 
-Stage 0: Foundation
-  ████  (half day)
+Stage 0: Foundation ✅
+  ████
 
-                   ┌── Stage 1: Scene + Creature ────┐
-Stage 1 + 2:       │   ████████                       │
-  (parallel)       │                                  │
-                   └── Stage 2: Server + Multiplayer ─┘
-                       ████████
+Stage 1 + 2 (parallel): ✅
+  ┌── Stage 1: Scene + Creature ────┐
+  │   ████████                       │
+  └── Stage 2: Server + Multiplayer ─┘
+      ████████
 
-Stage 3: Chat
+Stage 3: Chat ✅
   ████████
   ├── Chat UI (parallel)
   └── Chat Server (parallel)
 
-Stage 3.5: Voice Chat
+Stage 3.5: Voice Chat ✅
   ████████████
   ├── 3.5A: LiveKit infra ──┐
-  ├── 3.5B: Client voice ───┘ (depends on infra)
-  ├── 3.5C: Voice UI ──────── (UI mockup parallel with infra)
-  └── 3.5D: Spatial audio ─── (depends on client voice)
+  ├── 3.5B: Client voice ───┘
+  ├── 3.5C: Voice UI
+  └── 3.5D: Spatial audio
 
 Stage 4: Creature System ✅
   ████████████████
-  ├── 4E: Shared types/constants (6 Cute Zoo 4 creatures) ✅
-  ├── 4A: Asset pipeline (FBX→glTF via Blender, 6 models) ✅
-  ├── 4D: SQLite persistence (better-sqlite3, player queries) ✅
-  ├── 4B: Creature rendering (useGLTF, animations, fallback) ✅
-  └── 4C: Selection UI (CreaturePicker, CreaturePreview, localStorage) ✅
+  ├── 4A: Asset pipeline (Cute Zoo 4 FBX→glTF, 6 models)
+  ├── 4B: Creature rendering (useGLTF, SkeletonUtils.clone, animations)
+  ├── 4C: Selection UI (CreaturePicker, CreaturePreview, localStorage)
+  └── 4D: SQLite persistence (better-sqlite3, player queries)
 
-Stage 5: Skins                Stage 6: Hangout Spaces
-  ████████████████               ████████████████
-  ├── 5A+5B: Backend ──┐        ├── 6A: Room code ──────┐
-  └── 5C+5D: Client ───┘        ├── 6B: Room art ───────┘ (parallel)
-      (parallel)                 └── 6C: Interactions
+Stage 5: Skin & Collection System ✅
+  ████████████████
+  ├── 5A: Shared types/constants (30 skins, 4 sets, 4 rarities)
+  ├── 5B: HSL shader (onBeforeCompile GLSL injection) ──┐
+  ├── 5C: Accessories (10 types, bone attachment) ───────┤ parallel
+  ├── 5D: Particle effects (4 types, legendary skins) ──┤
+  ├── 5E: Backend (SQLite inventory, REST API, socket) ──┘
+  └── 5F: Client UI (SkinShop, SkinInventory, skinStore)
+
+─── COMPLETED ABOVE ─── PLANNED BELOW ───────────────────
+
+Stage 6: Hangout Spaces
+  ████████████████
+  ├── 6A: Room code ──────┐
+  ├── 6B: Room art ───────┘ (parallel)
+  └── 6C: Interactions
 
 Stage 7: Social + Polish (sub-tasks all parallel)
   ████████████████████
@@ -622,10 +675,10 @@ Enable camera → your creature's face mirrors your expressions in real time. Bl
 
 | When | Decision | Options |
 |------|----------|---------|
-| Stage 0 | Auth strategy | Simple username (fast) vs OAuth (Google/Discord) from start |
-| Stage 2 | Tick rate | 10Hz (good enough for social) vs 30Hz (smoother but more bandwidth) |
-| Stage 3.5 | LiveKit hosting | Local Docker for dev, self-host for prod, or LiveKit Cloud |
-| Stage 4 | Creature art source | Commission artist, use AI generation as base, modify existing assets |
+| Stage 0 | Auth strategy | **Chose:** Simple username (fast). OAuth deferred. |
+| Stage 2 | Tick rate | **Chose:** 10Hz — good enough for social, lower bandwidth |
+| Stage 3.5 | LiveKit hosting | **Chose:** Local Docker for dev (self-host for prod later) |
+| Stage 4 | Creature art source | **Chose:** Cute Zoo 4 (SURIYUN) commercial asset pack — 6 creatures |
 | Stage 5 | Monetization | Free skins via play time, premium currency, seasonal battle pass, or all free |
 | Stage 6 | Room creation | Only pre-made rooms, or user-created rooms with decoration? |
 | Stage 8 | Game scope | 2-3 simple games vs 1 deep game |
@@ -635,7 +688,7 @@ Enable camera → your creature's face mirrors your expressions in real time. Bl
 
 ---
 
-## MVP Definition (Stages 0-3)
+## MVP Definition (Stages 0-3) ✅
 
 The **minimum viable product** that you could show someone:
 - Open a link → pick a name → see an isometric room
@@ -643,4 +696,4 @@ The **minimum viable product** that you could show someone:
 - Other people in the room are visible and moving
 - You can chat via text panel and see chat bubbles
 
-**Everything after Stage 3 makes it better. Stages 0-3 make it exist.**
+**MVP complete.** Stages 0-3 shipped. Currently at Stage 5 complete with voice chat, 6 creature models, and a full skin/collection system (30 skins, HSL shader, accessories, particles, inventory UI).

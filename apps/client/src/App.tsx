@@ -4,8 +4,9 @@
 // isometric 3D scene with multiplayer and voice chat. Persists
 // name, creature, and room selection to localStorage.
 //
-// Depends on: scene/IsometricScene, stores/roomStore, ui/ChatPanel,
-//             ui/VoiceControls, ui/CreaturePicker, ui/CreaturePreview,
+// Depends on: scene/IsometricScene, stores/roomStore, stores/skinStore,
+//             ui/ChatPanel, ui/VoiceControls, ui/SkinShop,
+//             ui/CreaturePicker, ui/CreaturePreview,
 //             networking/useVoice, @cozy/shared
 // Used by:    main.tsx
 
@@ -19,11 +20,13 @@ import {
   DEFAULT_ROOM,
 } from "@cozy/shared";
 import { useRoomStore } from "./stores/roomStore";
+import { useSkinStore } from "./stores/skinStore";
 import IsometricScene from "./scene/IsometricScene";
-import ChatPanel from "./ui/ChatPanel";
-import VoiceControls from "./ui/VoiceControls";
-import CreaturePicker from "./ui/CreaturePicker";
-import CreaturePreview from "./ui/CreaturePreview";
+import ChatPanel from "./ui/chat/ChatPanel";
+import VoiceControls from "./ui/voice/VoiceControls";
+import SkinShop from "./ui/skins/SkinShop";
+import CreaturePicker from "./ui/creatures/CreaturePicker";
+import CreaturePreview from "./ui/creatures/CreaturePreview";
 import useVoice from "./networking/useVoice";
 
 // --- localStorage keys ---
@@ -52,9 +55,17 @@ export default function App() {
   const joinState = useRoomStore((s) => s.joinState);
   const joinError = useRoomStore((s) => s.joinError);
   const join = useRoomStore((s) => s.join);
-  const leave = useRoomStore((s) => s.leave);
+  const leaveRoom = useRoomStore((s) => s.leave);
+  const localPlayerId = useRoomStore((s) => s.localPlayerId);
+  const fetchInventory = useSkinStore((s) => s.fetchInventory);
+  const resetSkins = useSkinStore((s) => s.resetSkins);
 
-  const [name, setName] = useState<string>(() => loadStored(LS_NAME, (v) => v.trim().length > 0, ""));
+  function leave() {
+    leaveRoom();
+    resetSkins();
+  }
+
+  const [name, setName] = useState<string>(() => loadStored(LS_NAME, (v) => v.trim().length > 0 && v.length <= MAX_PLAYER_NAME, ""));
   const [creature, setCreature] = useState<CreatureTypeId>(
     () => loadStored(LS_CREATURE, (v) => v in CREATURES, DEFAULT_CREATURE),
   );
@@ -62,12 +73,17 @@ export default function App() {
     () => loadStored(LS_ROOM, (v) => v in ROOMS, DEFAULT_ROOM),
   );
 
+  // Fetch skin inventory after joining
+  useEffect(() => {
+    if (localPlayerId) {
+      fetchInventory(localPlayerId);
+    }
+  }, [localPlayerId, fetchInventory]);
+
   // Persist selections to localStorage
   useEffect(() => { saveStored(LS_NAME, name); }, [name]);
   useEffect(() => { saveStored(LS_CREATURE, creature); }, [creature]);
   useEffect(() => { saveStored(LS_ROOM, selectedRoom); }, [selectedRoom]);
-
-  const inRoom = roomId !== null;
 
   function handleJoin(e: React.FormEvent) {
     e.preventDefault();
@@ -75,7 +91,7 @@ export default function App() {
     join(name.trim(), creature, selectedRoom);
   }
 
-  if (!inRoom) {
+  if (!roomId) {
     const isJoining = joinState === "joining";
 
     return (
@@ -140,7 +156,8 @@ export default function App() {
     );
   }
 
-  return <InRoomView roomId={roomId!} isConnected={isConnected} playerCount={playerCount} leave={leave} />;
+  // roomId is guaranteed non-null here — the !inRoom early return handles null
+  return <InRoomView roomId={roomId} isConnected={isConnected} playerCount={playerCount} leave={leave} />;
 }
 
 /** Separate component so hooks (useVoice) are never called conditionally. */
@@ -156,6 +173,7 @@ function InRoomView({
   leave: () => void;
 }) {
   useVoice();
+  const [showSkins, setShowSkins] = useState(false);
 
   return (
     <div className="relative h-full w-full">
@@ -178,11 +196,19 @@ function InRoomView({
           >
             Leave
           </button>
+          <button
+            onClick={() => setShowSkins(true)}
+            className="pointer-events-auto w-fit rounded bg-purple-600/80 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-purple-500"
+          >
+            Skins
+          </button>
           <VoiceControls />
         </div>
       </div>
 
       <ChatPanel />
+
+      {showSkins && <SkinShop onClose={() => setShowSkins(false)} />}
     </div>
   );
 }

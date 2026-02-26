@@ -87,6 +87,14 @@ export const config = {
   /** LiveKit API secret (must match docker-compose LIVEKIT_KEYS). */
   livekitApiSecret: process.env.LIVEKIT_API_SECRET ?? "secret",
 
+  /** Minimum interval (ms) between REST API requests per IP. */
+  apiRateMs: parseIntEnv(
+    process.env.API_RATE_MS,
+    200,
+    "API_RATE_MS",
+    0,
+  ),
+
   /** Interval (ms) between rate-limiter / IP-count sweep passes. */
   sweepIntervalMs: parseIntEnv(
     process.env.SWEEP_INTERVAL_MS,

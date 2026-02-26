@@ -39,8 +39,29 @@ export default function SpatialAudioManager() {
       return;
     }
 
-    audioCtxRef.current = new AudioContext();
-    return () => cleanupAll(spatialSourcesRef.current, audioCtxRef);
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
+
+    // Some browsers suspend AudioContexts created without a user gesture.
+    // Resume on next user interaction if needed.
+    let resumeFn: (() => void) | null = null;
+    if (ctx.state === "suspended") {
+      resumeFn = () => {
+        ctx.resume().catch(() => {});
+        window.removeEventListener("click", resumeFn!);
+        window.removeEventListener("keydown", resumeFn!);
+      };
+      window.addEventListener("click", resumeFn, { once: true });
+      window.addEventListener("keydown", resumeFn, { once: true });
+    }
+
+    return () => {
+      if (resumeFn) {
+        window.removeEventListener("click", resumeFn);
+        window.removeEventListener("keydown", resumeFn);
+      }
+      cleanupAll(spatialSourcesRef.current, audioCtxRef);
+    };
   }, [spatialEnabled]);
 
   // Update spatial positions each frame

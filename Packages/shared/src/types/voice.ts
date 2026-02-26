@@ -2,8 +2,10 @@
 //
 // Voice chat state and event definitions shared between client and server.
 //
-// Depends on: nothing
+// Depends on: constants/rooms.ts (RoomId)
 // Used by:    client voiceStore, server voiceHandler, types/events.ts
+
+import type { RoomId } from "../constants/rooms.js";
 
 /** Voice state broadcast to other players via Socket.io. */
 export interface VoiceState {
@@ -16,7 +18,7 @@ export interface VoiceState {
 export interface VoiceTokenRequest {
   playerId: string;
   playerName: string;
-  roomId: string;
+  roomId: RoomId;
 }
 
 /** Token response from POST /api/voice/token. */

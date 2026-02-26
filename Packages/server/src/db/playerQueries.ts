@@ -4,7 +4,7 @@
 // All functions are synchronous (better-sqlite3 is sync by design).
 //
 // Depends on: db/database.ts, @cozy/shared (CreatureTypeId)
-// Used by:    socket/connectionHandler.ts
+// Used by:    socket/connectionHandler.ts, api/skins.ts
 
 import type { CreatureTypeId } from "@cozy/shared";
 import { getDb } from "./database.js";
@@ -13,6 +13,7 @@ export interface StoredPlayer {
   id: string;
   name: string;
   creature_type: string;
+  equipped_skin: string | null;
   created_at: number;
   last_seen: number;
 }
@@ -48,4 +49,28 @@ export function updatePlayerOnJoin(id: string, creatureType: CreatureTypeId): vo
   db.prepare(
     "UPDATE players SET creature_type = ?, last_seen = unixepoch() WHERE id = ?",
   ).run(creatureType, id);
+}
+
+/** Get the player's currently equipped skin ID, or null if none. */
+export function getEquippedSkin(id: string): string | null {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT equipped_skin FROM players WHERE id = ?")
+    .get(id) as { equipped_skin: string | null } | undefined;
+  return row?.equipped_skin ?? null;
+}
+
+/** Set the player's equipped skin (null to unequip). */
+export function setEquippedSkin(id: string, skinId: string | null): void {
+  const db = getDb();
+  db.prepare("UPDATE players SET equipped_skin = ? WHERE id = ?").run(skinId, id);
+}
+
+/** Check if a player exists by ID. */
+export function playerExists(id: string): boolean {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT 1 FROM players WHERE id = ? LIMIT 1")
+    .get(id);
+  return row !== undefined;
 }

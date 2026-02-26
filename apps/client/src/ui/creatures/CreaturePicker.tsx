@@ -8,7 +8,7 @@
 
 import { CREATURES } from "@cozy/shared";
 import type { CreatureTypeId } from "@cozy/shared";
-import { CREATURE_COLORS } from "../config";
+import { CREATURE_COLORS } from "../../config";
 
 interface CreaturePickerProps {
   selected: CreatureTypeId;

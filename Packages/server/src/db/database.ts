@@ -39,7 +39,26 @@ function initSchema(db: Database.Database): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_players_name ON players(name);
+
+    CREATE TABLE IF NOT EXISTS player_inventory (
+      player_id   TEXT NOT NULL,
+      skin_id     TEXT NOT NULL,
+      acquired_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (player_id, skin_id),
+      FOREIGN KEY (player_id) REFERENCES players(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_inventory_player ON player_inventory(player_id);
   `);
+
+  // Migration: add equipped_skin column to players (idempotent)
+  try {
+    db.exec("ALTER TABLE players ADD COLUMN equipped_skin TEXT DEFAULT NULL");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (!msg.includes("duplicate column")) throw err;
+  }
+
   console.log("[db] schema initialized");
 }
 

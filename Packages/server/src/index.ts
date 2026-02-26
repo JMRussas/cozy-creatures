@@ -3,7 +3,8 @@
 // Express + Socket.io server. Handles HTTP routes and real-time connections.
 //
 // Depends on: config.ts, socket/connectionHandler.ts, socket/chatHandler.ts,
-//             socket/voiceHandler.ts, api/voice.ts, rooms/RoomManager.ts, db/database.ts
+//             socket/voiceHandler.ts, socket/validation.ts, api/voice.ts, api/skins.ts,
+//             rooms/RoomManager.ts, db/database.ts
 // Used by:    pnpm dev:server
 
 import express from "express";
@@ -22,7 +23,9 @@ import { registerConnectionHandler } from "./socket/connectionHandler.js";
 import { registerChatHandler } from "./socket/chatHandler.js";
 import { registerVoiceHandler } from "./socket/voiceHandler.js";
 import { voiceRouter } from "./api/voice.js";
+import { skinsRouter } from "./api/skins.js";
 import { getDb, closeDb } from "./db/database.js";
+import { createRateLimiter } from "./socket/validation.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -43,7 +46,23 @@ const io = new Server<
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
 
+// --- REST API rate limiting per IP ---
+const apiLimiter = createRateLimiter(config.apiRateMs);
+setInterval(() => apiLimiter.sweep(config.sweepMaxAgeMs), config.sweepIntervalMs).unref();
+
+app.use("/api", (req, res, next) => {
+  // Health check is exempt
+  if (req.path === "/health") { next(); return; }
+  const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
+  if (apiLimiter.isRateLimited(ip)) {
+    res.status(429).json({ error: "Too many requests" });
+    return;
+  }
+  next();
+});
+
 app.use("/api", voiceRouter);
+app.use("/api", skinsRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: Date.now() });

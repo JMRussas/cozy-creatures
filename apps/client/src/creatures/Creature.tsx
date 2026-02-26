@@ -5,22 +5,25 @@
 // with a CreatureFallback while glTF loads.
 //
 // Depends on: @react-three/fiber, three, stores/playerStore, stores/roomStore,
-//             CreatureModel, CreatureFallback, CreatureShadow, ChatBubble,
-//             SpeakingIndicator, AudioRangeRing, config, utils/math
+//             stores/skinStore, CreatureModel, CreatureFallback, CreatureShadow,
+//             ChatBubble, SpeakingIndicator, AudioRangeRing, config, utils/math
 // Used by:    scene/IsometricScene
 
 import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { SKINS } from "@cozy/shared";
+import type { SkinId } from "@cozy/shared";
 import { usePlayerStore } from "../stores/playerStore";
 import { useRoomStore } from "../stores/roomStore";
+import { useSkinStore } from "../stores/skinStore";
 import CreatureModel from "./CreatureModel";
 import type { CreatureModelHandle } from "./CreatureModel";
 import CreatureFallback from "./CreatureFallback";
 import CreatureShadow from "./CreatureShadow";
-import ChatBubble from "./ChatBubble";
-import SpeakingIndicator from "./SpeakingIndicator";
-import AudioRangeRing from "./AudioRangeRing";
+import ChatBubble from "./overlays/ChatBubble";
+import SpeakingIndicator from "./overlays/SpeakingIndicator";
+import AudioRangeRing from "./overlays/AudioRangeRing";
 import { lerpAngle } from "../utils/math";
 import {
   MOVE_SPEED,
@@ -33,6 +36,8 @@ export default function Creature() {
   const modelRef = useRef<CreatureModelHandle>(null);
   const creatureType = usePlayerStore((s) => s.creatureType);
   const localPlayerId = useRoomStore((s) => s.localPlayerId);
+  const rawSkinId = useSkinStore((s) => s.equippedSkinId);
+  const equippedSkinId = rawSkinId && rawSkinId in SKINS ? (rawSkinId as SkinId) : undefined;
 
   // Pre-allocated vectors reused every frame (avoid GC pressure)
   const targetVec = useRef(new THREE.Vector3());
@@ -86,7 +91,7 @@ export default function Creature() {
   return (
     <group ref={groupRef}>
       <Suspense fallback={<CreatureFallback creatureType={creatureType} />}>
-        <CreatureModel ref={modelRef} creatureType={creatureType} />
+        <CreatureModel ref={modelRef} creatureType={creatureType} skinId={equippedSkinId} />
       </Suspense>
 
       <CreatureShadow />

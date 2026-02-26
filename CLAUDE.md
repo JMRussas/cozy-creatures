@@ -27,10 +27,10 @@ cozy-creatures/
 │       │   ├── main.tsx          # Entry point
 │       │   ├── App.tsx           # Root component
 │       │   ├── scene/            # Three.js scene, camera, lighting
-│       │   ├── creatures/        # glTF creature models, animations, chat bubbles, speaking indicators
-│       │   ├── ui/               # React UI (ChatPanel, VoiceControls, CreaturePicker, CreaturePreview)
+│       │   ├── creatures/        # glTF models, animations, shaders, accessories, particles, overlays/
+│       │   ├── ui/               # Feature subfolders: chat/, voice/, skins/, creatures/
 │       │   ├── networking/       # Socket.io client, LiveKit voice, spatial audio
-│       │   ├── stores/           # Zustand stores (player, room, chat, voice)
+│       │   ├── stores/           # Zustand stores (player, room, chat, voice, skin)
 │       │   ├── utils/            # Shared math helpers
 │       │   ├── input/            # Click-to-move, keyboard
 │       │   └── assets/           # Static assets
@@ -44,13 +44,13 @@ cozy-creatures/
 │   │       ├── socket/           # Socket.io handlers (connection, chat, voice)
 │   │       ├── rooms/            # Room management
 │   │       ├── auth/             # Auth (simple → OAuth)
-│   │       ├── db/               # SQLite (better-sqlite3) — player persistence
-│   │       └── api/              # REST endpoints (voice token)
+│   │       ├── db/               # SQLite (better-sqlite3) — player + inventory persistence
+│   │       └── api/              # REST endpoints (voice token, skins)
 │   │
 │   └── shared/                   # Shared TypeScript types (@cozy/shared)
 │       └── src/
-│           ├── types/            # Player, Creature, Room, Chat, Voice, Events
-│           └── constants/        # Creature defs, room configs, voice config
+│           ├── types/            # Player, Creature, Room, Chat, Voice, Skin, Events
+│           └── constants/        # Creature defs, room configs, voice config, skin registry
 │
 ├── tools/
 │   └── convert_creatures.py      # Blender FBX→glTF batch converter
@@ -71,6 +71,8 @@ cozy-creatures/
 | [.claude/code_review_stage3.md](.claude/code_review_stage3.md) | Post-Stage 3 code review (43 findings, all resolved) |
 | [.claude/code_review_voice.md](.claude/code_review_voice.md) | Voice chat code review (28 findings, all resolved) |
 | [.claude/code_review_stage4.md](.claude/code_review_stage4.md) | Creature system code review (14 findings, all resolved) |
+| [.claude/code_review_stage5.md](.claude/code_review_stage5.md) | Skin system code review (52 findings, all resolved) |
+| [.claude/code_review_holistic.md](.claude/code_review_holistic.md) | Holistic cross-package review (7H, 10M, 12L — all H/M resolved) |
 | [.claude/file_index.md](.claude/file_index.md) | Complete file index: summaries, line counts, dependency graphs |
 
 ## Tech Stack

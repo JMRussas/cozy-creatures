@@ -43,15 +43,15 @@ describe("Room", () => {
     it("adds a player and retrieves them", () => {
       const room = makeRoom();
       const player = makePlayer("p1");
-      expect(room.addPlayer(player)).toBe(true);
+      expect(room.addPlayer(player)).toBeNull();
       expect(room.getPlayer("p1")).toBe(player);
     });
 
-    it("returns false for duplicate player ID", () => {
+    it("returns 'duplicate' for duplicate player ID", () => {
       const room = makeRoom();
       const player = makePlayer("p1");
-      expect(room.addPlayer(player)).toBe(true);
-      expect(room.addPlayer(makePlayer("p1", "Duplicate"))).toBe(false);
+      expect(room.addPlayer(player)).toBeNull();
+      expect(room.addPlayer(makePlayer("p1", "Duplicate"))).toBe("duplicate");
     });
 
     it("does not overwrite existing player on duplicate ID", () => {
@@ -61,10 +61,10 @@ describe("Room", () => {
       expect(room.getPlayer("p1")!.name).toBe("Original");
     });
 
-    it("returns false when room is full", () => {
+    it("returns 'full' when room is full", () => {
       const room = makeRoom({ maxPlayers: 1 });
       room.addPlayer(makePlayer("p1"));
-      expect(room.addPlayer(makePlayer("p2"))).toBe(false);
+      expect(room.addPlayer(makePlayer("p2"))).toBe("full");
     });
 
     it("does not add the player when room is full", () => {
@@ -92,7 +92,7 @@ describe("Room", () => {
       const room = makeRoom({ maxPlayers: 1 });
       room.addPlayer(makePlayer("p1"));
       room.removePlayer("p1");
-      expect(room.addPlayer(makePlayer("p2"))).toBe(true);
+      expect(room.addPlayer(makePlayer("p2"))).toBeNull();
     });
   });
 

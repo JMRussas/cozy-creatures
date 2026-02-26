@@ -7,6 +7,7 @@
 
 import type { CreatureTypeId } from "../constants/creatures.js";
 import type { RoomId } from "../constants/rooms.js";
+import type { SkinId } from "../constants/skins.js";
 
 /** 3D world-space position. */
 export interface Position {
@@ -23,7 +24,7 @@ export interface Player {
   position: Position;
   roomId: RoomId;
   /** Stage 4+ — cosmetic skin override. */
-  skinId?: string;
+  skinId?: SkinId;
 }
 
 /** Persistent player profile — Stage 4+ (user account system). */
@@ -31,6 +32,6 @@ export interface PlayerProfile {
   id: string;
   name: string;
   creatureType: CreatureTypeId;
-  equippedSkinId?: string;
+  equippedSkinId?: SkinId;
   createdAt: number;
 }

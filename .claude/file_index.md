@@ -2,7 +2,7 @@
 
 Complete index of all source files with one-line summaries, line counts, and dependency edges.
 
-**58+ source files, ~3,800+ lines** (excluding tests and config files).
+**75+ source files, ~5,200+ lines** (excluding tests and config files).
 
 ## Shared Package (`@cozy/shared` — Packages/shared/src/)
 
@@ -16,7 +16,8 @@ Complete index of all source files with one-line summaries, line counts, and dep
 | [types/room.ts](../Packages/shared/src/types/room.ts) | 30 | `RoomBase`, `RoomConfig`, `RoomInfo`, `RoomState` |
 | [types/chat.ts](../Packages/shared/src/types/chat.ts) | 17 | `ChatMessage` — single chat message structure |
 | [types/voice.ts](../Packages/shared/src/types/voice.ts) | 26 | `VoiceState`, `VoiceTokenRequest`, `VoiceTokenResponse` |
-| [types/events.ts](../Packages/shared/src/types/events.ts) | 56 | `ClientToServerEvents`, `ServerToClientEvents`, `SocketData` (incl. voice:state) |
+| [types/events.ts](../Packages/shared/src/types/events.ts) | 64 | `ClientToServerEvents`, `ServerToClientEvents`, `SocketData` (incl. voice:state, skin events) |
+| [types/skin.ts](../Packages/shared/src/types/skin.ts) | 90 | `SkinRarity`, `SkinColorShift`, `SkinAccessory`, `SkinParticleEffect`, `SkinDefinition`, `SkinSet`, `InventoryItem`, `RarityInfo` |
 
 ### Constants
 
@@ -25,14 +26,16 @@ Complete index of all source files with one-line summaries, line counts, and dep
 | [constants/config.ts](../Packages/shared/src/constants/config.ts) | 49 | Numeric limits: `MAX_PLAYER_NAME`, `MAX_CHAT_MESSAGE`, position bounds, rate limits, voice spatial/PTT constants |
 | [constants/creatures.ts](../Packages/shared/src/constants/creatures.ts) | 69 | `CREATURES` registry (otter, red-panda, sloth, chipmunk, possum, pangolin), `CreatureTypeId`, `DEFAULT_CREATURE`, `BASE_ANIMATIONS` |
 | [constants/rooms.ts](../Packages/shared/src/constants/rooms.ts) | 38 | `ROOMS` registry (3 rooms), `RoomId`, `DEFAULT_ROOM` |
+| [constants/skins.ts](../Packages/shared/src/constants/skins.ts) | 447 | `SKINS` registry (30 skins), `SKIN_SETS` (4 themed sets), `RARITIES`, `DEFAULT_SKIN_IDS`, `SkinId`, `SkinSetId` |
 
 ### Dependency Graph
 
 ```
 creature.ts ← creatures.ts ← player.ts ← events.ts
-                                  ↑           ↑
-room.ts ← rooms.ts ← config.ts   chat.ts ────┘
+                    ↑             ↑           ↑
+skin.ts ← skins.ts─┘  config.ts  chat.ts ────┘
                                   voice.ts ───┘
+room.ts ← rooms.ts ← config.ts
 ```
 
 ---
@@ -46,13 +49,15 @@ room.ts ← rooms.ts ← config.ts   chat.ts ────┘
 | [api/voice.ts](../Packages/server/src/api/voice.ts) | 61 | `POST /api/voice/token` — validates request, creates LiveKit JWT, returns token + URL |
 | [rooms/Room.ts](../Packages/server/src/rooms/Room.ts) | 74 | Single room state: player Map, capacity, `getState()`, `getInfo()` |
 | [rooms/RoomManager.ts](../Packages/server/src/rooms/RoomManager.ts) | 45 | Manages all Room instances, initializes from `ROOMS` constant |
-| [socket/connectionHandler.ts](../Packages/server/src/socket/connectionHandler.ts) | 222 | `player:join` (reuses DB player ID), `player:move`, `player:leave`, `room:list`, `disconnect` handlers + voice cleanup |
+| [socket/connectionHandler.ts](../Packages/server/src/socket/connectionHandler.ts) | 295 | `player:join` (reuses DB player ID), `player:move`, `player:leave`, `room:list`, `player:equip-skin`, `disconnect` handlers + voice/skin cleanup |
 | [socket/chatHandler.ts](../Packages/server/src/socket/chatHandler.ts) | 141 | `chat:message` handler, in-memory ring buffer history, rate limiting |
 | [socket/voiceHandler.ts](../Packages/server/src/socket/voiceHandler.ts) | 58 | `voice:state` broadcast to room, rate-limited, `cleanupVoice()` export |
 | [socket/profanityFilter.ts](../Packages/server/src/socket/profanityFilter.ts) | 35 | Word-list replacement filter — `filterProfanity()` |
 | [socket/validation.ts](../Packages/server/src/socket/validation.ts) | 81 | `stripControlChars`, `sanitizePosition`, `createRateLimiter`, `isFiniteNumber`, `clamp` |
-| [db/database.ts](../Packages/server/src/db/database.ts) | 53 | SQLite singleton via better-sqlite3, WAL mode, schema init (players table) |
-| [db/playerQueries.ts](../Packages/server/src/db/playerQueries.ts) | 50 | Player CRUD: `findPlayerByName`, `createPlayer`, `updatePlayerOnJoin` |
+| [api/skins.ts](../Packages/server/src/api/skins.ts) | 121 | REST endpoints: `GET /api/skins`, `GET /api/skins/inventory/:playerId`, `POST /api/skins/equip` |
+| [db/database.ts](../Packages/server/src/db/database.ts) | 72 | SQLite singleton via better-sqlite3, WAL mode, schema init (players + player_inventory tables) |
+| [db/playerQueries.ts](../Packages/server/src/db/playerQueries.ts) | 67 | Player CRUD: `findPlayerByName`, `createPlayer`, `updatePlayerOnJoin`, `getEquippedSkin`, `setEquippedSkin` |
+| [db/inventoryQueries.ts](../Packages/server/src/db/inventoryQueries.ts) | 71 | Inventory CRUD: `getPlayerInventory`, `addToInventory`, `playerOwnsSkin`, `removeFromInventory`, `grantDefaultSkins` |
 
 ### Dependency Graph
 
@@ -60,14 +65,17 @@ room.ts ← rooms.ts ← config.ts   chat.ts ────┘
 index.ts
   ├── config.ts ← @cozy/shared
   ├── voiceRouter (api/voice.ts) ← config.ts, livekit-server-sdk
+  ├── skinsRouter (api/skins.ts) ← db/database.ts, db/inventoryQueries.ts, db/playerQueries.ts, @cozy/shared
   ├── RoomManager.ts ← Room.ts ← @cozy/shared
   ├── db/database.ts ← better-sqlite3, config.ts
-  │     └── db/playerQueries.ts ← @cozy/shared
+  │     ├── db/playerQueries.ts ← @cozy/shared
+  │     └── db/inventoryQueries.ts ← @cozy/shared
   ├── connectionHandler.ts
   │     ├── validation.ts ← @cozy/shared
   │     ├── chatHandler.ts (sendChatHistory, cleanupChat)
   │     ├── voiceHandler.ts (cleanupVoice)
   │     ├── db/playerQueries.ts
+  │     ├── db/inventoryQueries.ts
   │     ├── RoomManager.ts
   │     └── config.ts
   ├── chatHandler.ts
@@ -108,6 +116,7 @@ index.ts
 | [stores/roomStore.ts](../apps/client/src/stores/roomStore.ts) | 178 | Room state + Socket.io listeners: join/leave flow, player sync, voice reset |
 | [stores/chatStore.ts](../apps/client/src/stores/chatStore.ts) | 117 | Chat messages, bubble lifecycle (setTimeout-based), unread count |
 | [stores/voiceStore.ts](../apps/client/src/stores/voiceStore.ts) | 139 | Voice state: muted, deafened, speaking, spatial, remote speaking, device settings |
+| [stores/skinStore.ts](../apps/client/src/stores/skinStore.ts) | 103 | Skin inventory, equipped skin, equip/unequip via socket with timeout, REST inventory fetch |
 
 ### 3D Scene
 
@@ -123,24 +132,33 @@ index.ts
 | File | Lines | Summary |
 |------|------:|---------|
 | [creatures/Creature.tsx](../apps/client/src/creatures/Creature.tsx) | 100 | Local player: click-to-move, imperative animation drive (idle/walk), Suspense fallback, CreatureShadow |
-| [creatures/CreatureModel.tsx](../apps/client/src/creatures/CreatureModel.tsx) | 89 | glTF model loader (useGLTF + SkeletonUtils.clone), imperative `setAnimation()` handle, crossfade |
+| [creatures/CreatureModel.tsx](../apps/client/src/creatures/CreatureModel.tsx) | 121 | glTF model loader (useGLTF + SkeletonUtils.clone), imperative `setAnimation()` handle, crossfade, HSL skin shader, accessories, particles |
 | [creatures/CreatureFallback.tsx](../apps/client/src/creatures/CreatureFallback.tsx) | 68 | Suspense fallback: procedural capsule+cones+eyes mesh (plain function component) |
 | [creatures/CreatureShadow.tsx](../apps/client/src/creatures/CreatureShadow.tsx) | 23 | Shared shadow circle mesh extracted from Creature + RemoteCreature |
 | [creatures/RemotePlayers.tsx](../apps/client/src/creatures/RemotePlayers.tsx) | 29 | Maps `players` record to `<RemoteCreature>` instances |
 | [creatures/RemoteCreature.tsx](../apps/client/src/creatures/RemoteCreature.tsx) | 122 | Remote player: position lerp, hysteresis-based animation state, CreatureShadow |
-| [creatures/ChatBubble.tsx](../apps/client/src/creatures/ChatBubble.tsx) | 35 | drei `<Html>` overlay above creature — shows latest message |
-| [creatures/SpeakingIndicator.tsx](../apps/client/src/creatures/SpeakingIndicator.tsx) | 70 | R3F torus above creature head, pulsing green opacity when speaking |
-| [creatures/AudioRangeRing.tsx](../apps/client/src/creatures/AudioRangeRing.tsx) | 32 | Ring geometry at spatial max distance, shown when spatial audio enabled |
+| [creatures/overlays/ChatBubble.tsx](../apps/client/src/creatures/overlays/ChatBubble.tsx) | 35 | drei `<Html>` overlay above creature — shows latest message |
+| [creatures/overlays/SpeakingIndicator.tsx](../apps/client/src/creatures/overlays/SpeakingIndicator.tsx) | 70 | R3F torus above creature head, pulsing green opacity when speaking |
+| [creatures/overlays/AudioRangeRing.tsx](../apps/client/src/creatures/overlays/AudioRangeRing.tsx) | 32 | Ring geometry at spatial max distance, shown when spatial audio enabled |
+| [creatures/shaders/hslShader.ts](../apps/client/src/creatures/shaders/hslShader.ts) | 190 | HSL color-shift shader via `onBeforeCompile` GLSL injection, material cloning, uniform storage |
+| [creatures/accessories/boneUtils.ts](../apps/client/src/creatures/accessories/boneUtils.ts) | 42 | `findBoneByPattern()` — case-insensitive bone search; `findSkeleton()` |
+| [creatures/accessories/accessoryFactories.ts](../apps/client/src/creatures/accessories/accessoryFactories.ts) | 177 | 10 procedural accessory types (top-hat, beret, crown, scarf, etc.) from Three.js primitives |
+| [creatures/accessories/AccessoryAttacher.tsx](../apps/client/src/creatures/accessories/AccessoryAttacher.tsx) | 97 | Imperatively attaches accessories to creature bones via `useEffect` with cleanup/disposal |
+| [creatures/effects/ParticleEffect.tsx](../apps/client/src/creatures/effects/ParticleEffect.tsx) | 230 | GPU particle system: `Points` + custom `ShaderMaterial`, 4 effect types (sparkle, glow, flame, hearts) |
 
 ### UI
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [ui/ChatPanel.tsx](../apps/client/src/ui/ChatPanel.tsx) | 152 | Collapsible chat panel: message list, input, unread badge, speaking dots, Escape to close |
-| [ui/CreaturePicker.tsx](../apps/client/src/ui/CreaturePicker.tsx) | 49 | 3x2 grid of creature cards with accent border on selection (type-safe keys) |
-| [ui/CreaturePreview.tsx](../apps/client/src/ui/CreaturePreview.tsx) | 55 | Small R3F Canvas with auto-rotating creature model preview + targeted preload |
-| [ui/VoiceControls.tsx](../apps/client/src/ui/VoiceControls.tsx) | 87 | HUD bar: mic toggle, deafen toggle, settings gear, connection status dot |
-| [ui/VoiceSettings.tsx](../apps/client/src/ui/VoiceSettings.tsx) | 211 | Settings panel: mic selector, level meter, volume sliders, PTT/spatial toggles |
+| [ui/chat/ChatPanel.tsx](../apps/client/src/ui/chat/ChatPanel.tsx) | 152 | Collapsible chat panel: message list, input, unread badge, speaking dots, Escape to close |
+| [ui/creatures/CreaturePicker.tsx](../apps/client/src/ui/creatures/CreaturePicker.tsx) | 49 | 3x2 grid of creature cards with accent border on selection (type-safe keys) |
+| [ui/creatures/CreaturePreview.tsx](../apps/client/src/ui/creatures/CreaturePreview.tsx) | 55 | Small R3F Canvas with auto-rotating creature model preview + targeted preload |
+| [ui/voice/VoiceControls.tsx](../apps/client/src/ui/voice/VoiceControls.tsx) | 87 | HUD bar: mic toggle, deafen toggle, settings gear, connection status dot |
+| [ui/voice/VoiceSettings.tsx](../apps/client/src/ui/voice/VoiceSettings.tsx) | 211 | Settings panel: mic selector, level meter, volume sliders, PTT/spatial toggles |
+| [ui/skins/SkinShop.tsx](../apps/client/src/ui/skins/SkinShop.tsx) | 175 | Full-screen modal: browse all skins by set, inventory tab, 3D preview, equip/unequip |
+| [ui/skins/SkinInventory.tsx](../apps/client/src/ui/skins/SkinInventory.tsx) | 100 | Owned skins grid with rarity sorting, equip controls, 3D preview sidebar |
+| [ui/skins/SkinPreview.tsx](../apps/client/src/ui/skins/SkinPreview.tsx) | 52 | R3F Canvas turntable preview showing creature with full skin (HSL + accessories + particles) |
+| [ui/skins/RarityBadge.tsx](../apps/client/src/ui/skins/RarityBadge.tsx) | 29 | Pill badge displaying rarity with color; legendary pulse animation (respects reduced motion) |
 
 ### Utilities
 
@@ -153,25 +171,30 @@ index.ts
 ```
 main.tsx → App.tsx
               ├── roomStore ← socket, playerStore, chatStore, voiceStore
+              ├── skinStore ← socket
               ├── InRoomView
               │     ├── useVoice ← voiceStore, roomStore, playerStore, livekit-client
               │     ├── IsometricScene
               │     │     ├── CameraRig ← playerStore, config
               │     │     ├── Ground ← playerStore, config
               │     │     ├── Lighting ← config
-              │     │     ├── Creature ← playerStore, roomStore, CreatureModel, ChatBubble, SpeakingIndicator, AudioRangeRing
+              │     │     ├── Creature ← playerStore, roomStore, skinStore, CreatureModel
+              │     │     │     └── CreatureModel ← hslShader, AccessoryAttacher, ParticleEffect
               │     │     ├── RemotePlayers ← roomStore
-              │     │     │     └── RemoteCreature ← roomStore, CreatureModel, ChatBubble, SpeakingIndicator
+              │     │     │     └── RemoteCreature ← roomStore, CreatureModel
               │     │     ├── NetworkSync ← playerStore, socket
-              │     │     └── SpatialAudioManager ← voiceStore, playerStore, roomStore, useVoice (getLivekitRoom)
+              │     │     └── SpatialAudioManager ← voiceStore, playerStore, roomStore
               │     ├── ChatPanel ← chatStore, roomStore, voiceStore
-              │     └── VoiceControls ← voiceStore
-              │           └── VoiceSettings ← voiceStore
+              │     ├── VoiceControls ← voiceStore
+              │     │     └── VoiceSettings ← voiceStore
+              │     └── SkinShop ← skinStore, @cozy/shared
+              │           ├── SkinInventory ← skinStore, SkinPreview, RarityBadge
+              │           └── SkinPreview ← CreatureModel
 ```
 
 ---
 
-## Test Files (17 files, ~145 unique tests)
+## Test Files (33 files, ~352 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
@@ -191,3 +214,11 @@ main.tsx → App.tsx
 | `apps/client/src/config.test.ts` | 2 | CREATURE_COLORS completeness and hex format |
 | `Packages/server/src/db/database.test.ts` | 5 | Schema init, singleton, close/reopen, table/index verification |
 | `Packages/server/src/db/playerQueries.test.ts` | 6 | CRUD operations, name lookup |
+| `Packages/shared/src/constants/skins.test.ts` | 16 | All skins reference valid creatures/sets/rarities, colorShift bounds, particles only on legendary, coverage per creature |
+| `apps/client/src/creatures/shaders/hslShader.test.ts` | 8 | Material cloning, uniform storage, degree→radian conversion, cache key uniqueness |
+| `apps/client/src/creatures/accessories/boneUtils.test.ts` | 5 | Bone search (case-insensitive substring match), missing bone returns null |
+| `apps/client/src/creatures/accessories/accessoryFactories.test.ts` | 3 | All types have factories, each returns Object3D |
+| `apps/client/src/creatures/effects/ParticleEffect.test.ts` | 2 | Config validation — all effect types in SKINS have particle counts defined |
+| `Packages/server/src/db/inventoryQueries.test.ts` | 8 | Inventory CRUD, ownership check, grantDefaultSkins idempotency |
+| `Packages/server/src/api/skins.test.ts` | 11 | REST endpoints: GET catalog, GET inventory, POST equip (ownership, creature match, unknown skin, unequip) |
+| `apps/client/src/stores/skinStore.test.ts` | 12 | State management: init, reset, equip emit/callback/timeout/guard, unequip, fetchInventory |

@@ -27,11 +27,12 @@ export class RoomManager {
     return Array.from(this.rooms.values()).map((room) => room.getInfo());
   }
 
-  joinRoom(roomId: string, player: Player): Room | null {
+  joinRoom(roomId: string, player: Player): { room: Room } | { error: "not_found" | "full" | "duplicate" } {
     const room = this.rooms.get(roomId);
-    if (!room) return null;
-    if (!room.addPlayer(player)) return null;
-    return room;
+    if (!room) return { error: "not_found" };
+    const addError = room.addPlayer(player);
+    if (addError) return { error: addError };
+    return { room };
   }
 
   leaveRoom(roomId: string, playerId: string): void {

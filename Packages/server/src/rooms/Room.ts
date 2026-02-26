@@ -22,11 +22,12 @@ export class Room {
     this.maxPlayers = config.maxPlayers;
   }
 
-  addPlayer(player: Player): boolean {
-    if (this.players.has(player.id)) return false;
-    if (this.players.size >= this.maxPlayers) return false;
+  /** Add a player to the room. Returns null on success, or an error reason. */
+  addPlayer(player: Player): null | "duplicate" | "full" {
+    if (this.players.has(player.id)) return "duplicate";
+    if (this.players.size >= this.maxPlayers) return "full";
     this.players.set(player.id, player);
-    return true;
+    return null;
   }
 
   removePlayer(id: string): boolean {

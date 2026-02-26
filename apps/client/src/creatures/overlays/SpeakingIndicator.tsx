@@ -9,7 +9,7 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { useVoiceStore } from "../stores/voiceStore";
+import { useVoiceStore } from "../../stores/voiceStore";
 
 interface SpeakingIndicatorProps {
   playerId: string;

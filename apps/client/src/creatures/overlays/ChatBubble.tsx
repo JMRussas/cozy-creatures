@@ -7,7 +7,7 @@
 // Used by:    creatures/Creature.tsx, creatures/RemoteCreature.tsx
 
 import { Html } from "@react-three/drei";
-import { useChatStore } from "../stores/chatStore";
+import { useChatStore } from "../../stores/chatStore";
 
 interface ChatBubbleProps {
   playerId: string;

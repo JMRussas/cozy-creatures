@@ -11,6 +11,8 @@ export * from "./types/room.js";
 export * from "./types/chat.js";
 export * from "./types/events.js";
 export * from "./types/voice.js";
+export * from "./types/skin.js";
 export * from "./constants/config.js";
 export * from "./constants/creatures.js";
 export * from "./constants/rooms.js";
+export * from "./constants/skins.js";

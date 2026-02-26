@@ -62,24 +62,26 @@ describe("RoomManager", () => {
   describe("joinRoom", () => {
     it("adds a player and returns the room", () => {
       const mgr = new RoomManager();
-      const room = mgr.joinRoom(DEFAULT_ROOM, makePlayer("p1"));
-      expect(room).not.toBeNull();
-      expect(room!.getPlayer("p1")).toBeDefined();
+      const result = mgr.joinRoom(DEFAULT_ROOM, makePlayer("p1"));
+      expect("room" in result).toBe(true);
+      if ("room" in result) {
+        expect(result.room.getPlayer("p1")).toBeDefined();
+      }
     });
 
-    it("returns null for non-existent room", () => {
+    it("returns error for non-existent room", () => {
       const mgr = new RoomManager();
-      expect(mgr.joinRoom("nope", makePlayer("p1"))).toBeNull();
+      expect(mgr.joinRoom("nope", makePlayer("p1"))).toEqual({ error: "not_found" });
     });
 
-    it("returns null when room is full", () => {
+    it("returns error when room is full", () => {
       const mgr = new RoomManager();
       const roomId = DEFAULT_ROOM;
       const maxPlayers = ROOMS[roomId].maxPlayers;
       for (let i = 0; i < maxPlayers; i++) {
         mgr.joinRoom(roomId, makePlayer(`p${i}`));
       }
-      expect(mgr.joinRoom(roomId, makePlayer("overflow"))).toBeNull();
+      expect(mgr.joinRoom(roomId, makePlayer("overflow"))).toEqual({ error: "full" });
     });
 
     it("updates player count in listRooms", () => {

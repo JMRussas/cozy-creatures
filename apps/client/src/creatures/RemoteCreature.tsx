@@ -13,14 +13,15 @@
 import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { DEFAULT_CREATURE } from "@cozy/shared";
+import { DEFAULT_CREATURE, SKINS } from "@cozy/shared";
+import type { SkinId } from "@cozy/shared";
 import { useRoomStore } from "../stores/roomStore";
 import CreatureModel from "./CreatureModel";
 import type { CreatureModelHandle } from "./CreatureModel";
 import CreatureFallback from "./CreatureFallback";
 import CreatureShadow from "./CreatureShadow";
-import ChatBubble from "./ChatBubble";
-import SpeakingIndicator from "./SpeakingIndicator";
+import ChatBubble from "./overlays/ChatBubble";
+import SpeakingIndicator from "./overlays/SpeakingIndicator";
 import { lerpAngle } from "../utils/math";
 import {
   REMOTE_LERP_SPEED,
@@ -44,6 +45,8 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
   const creatureType = useRoomStore(
     (s) => s.players[playerId]?.creatureType ?? DEFAULT_CREATURE,
   );
+  const rawSkinId = useRoomStore((s) => s.players[playerId]?.skinId);
+  const skinId = rawSkinId && rawSkinId in SKINS ? (rawSkinId as SkinId) : undefined;
 
   // Pre-allocated vectors reused every frame (avoid GC pressure)
   const targetVec = useRef(new THREE.Vector3());
@@ -110,7 +113,7 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
   return (
     <group ref={groupRef}>
       <Suspense fallback={<CreatureFallback creatureType={creatureType} />}>
-        <CreatureModel ref={modelRef} creatureType={creatureType} />
+        <CreatureModel ref={modelRef} creatureType={creatureType} skinId={skinId} />
       </Suspense>
 
       <CreatureShadow />

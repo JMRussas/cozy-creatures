@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useVoiceStore } from "../stores/voiceStore";
+import { useVoiceStore } from "../../stores/voiceStore";
 import VoiceSettings from "./VoiceSettings";
 
 export default function VoiceControls() {

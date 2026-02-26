@@ -182,3 +182,16 @@ socket.off("player:left").on("player:left", ({ id }) => {
     return { remoteSpeaking: rest };
   });
 });
+
+socket.off("player:skin-changed").on("player:skin-changed", ({ id, skinId }) => {
+  useRoomStore.setState((prev) => {
+    const player = prev.players[id];
+    if (!player) return prev;
+    return {
+      players: {
+        ...prev.players,
+        [id]: { ...player, skinId: skinId ?? undefined },
+      },
+    };
+  });
+});

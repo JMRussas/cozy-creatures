@@ -9,9 +9,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useChatStore } from "../stores/chatStore";
-import { useRoomStore } from "../stores/roomStore";
-import { useVoiceStore } from "../stores/voiceStore";
+import { useChatStore } from "../../stores/chatStore";
+import { useRoomStore } from "../../stores/roomStore";
+import { useVoiceStore } from "../../stores/voiceStore";
 import { MAX_CHAT_MESSAGE } from "@cozy/shared";
 
 export default function ChatPanel() {

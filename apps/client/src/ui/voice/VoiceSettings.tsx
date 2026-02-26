@@ -8,7 +8,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useVoiceStore } from "../stores/voiceStore";
+import { useVoiceStore } from "../../stores/voiceStore";
 
 interface VoiceSettingsProps {
   onClose: () => void;
