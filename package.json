@@ -2,15 +2,19 @@
   "name": "cozy-creatures",
   "private": true,
   "scripts": {
-    "dev": "pnpm --parallel --filter @cozy/client --filter @cozy/server dev",
+    "dev": "pnpm --parallel --filter @cozy/client --filter @cozy/server --filter @cozy/shared dev",
     "dev:client": "pnpm --filter @cozy/client dev",
     "dev:server": "pnpm --filter @cozy/server dev",
-    "build": "pnpm --filter @cozy/shared build && pnpm --filter @cozy/client build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "build": "pnpm --filter @cozy/shared build && pnpm --parallel --filter @cozy/client --filter @cozy/server build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   }
 }

@@ -30,6 +30,7 @@ cozy-creatures/
 │       │   ├── ui/               # React UI components
 │       │   ├── networking/       # Socket.io client
 │       │   ├── stores/           # Zustand state stores
+│       │   ├── utils/            # Shared math helpers
 │       │   ├── input/            # Click-to-move, keyboard
 │       │   └── assets/           # Static assets
 │       └── vite.config.ts        # Vite config + proxy to server
@@ -63,6 +64,7 @@ cozy-creatures/
 | [.claude/project_plan.md](.claude/project_plan.md) | Full development plan (stages 0-8) |
 | [.claude/architecture.md](.claude/architecture.md) | System architecture, state machines, data flow |
 | [.claude/asset_pipeline.md](.claude/asset_pipeline.md) | Asset catalog, import workflow |
+| [.claude/code_review.md](.claude/code_review.md) | Post-Stage 2 code review findings (18 items, all resolved) |
 
 ## Tech Stack
 

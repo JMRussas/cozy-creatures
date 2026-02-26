@@ -2,39 +2,37 @@
 //
 // Predefined room configurations.
 //
-// Depends on: nothing
+// Depends on: types/room.ts, constants/config.ts
 // Used by:    client room browser, server room manager
 
-export interface RoomConfig {
-  id: string;
-  name: string;
-  theme: string;
-  maxPlayers: number;
-  description: string;
-}
+import type { RoomConfig } from "../types/room.js";
+import { DEFAULT_MAX_PLAYERS } from "./config.js";
 
-export const ROOMS: Record<string, RoomConfig> = {
+export const ROOMS = {
   "cozy-cafe": {
     id: "cozy-cafe",
     name: "Cozy Cafe",
     theme: "cozy-cafe",
-    maxPlayers: 20,
+    maxPlayers: DEFAULT_MAX_PLAYERS,
     description: "Warm lighting, tiny tables, and the smell of coffee.",
   },
   "rooftop-garden": {
     id: "rooftop-garden",
     name: "Rooftop Garden",
     theme: "rooftop-garden",
-    maxPlayers: 20,
+    maxPlayers: DEFAULT_MAX_PLAYERS,
     description: "Plants, fairy lights, and a sunset view.",
   },
   "starlight-lounge": {
     id: "starlight-lounge",
     name: "Starlight Lounge",
     theme: "starlight-lounge",
-    maxPlayers: 20,
+    maxPlayers: DEFAULT_MAX_PLAYERS,
     description: "Dark purple ambiance with constellations on the floor.",
   },
-};
+} satisfies Record<string, RoomConfig>;
 
-export const DEFAULT_ROOM = "cozy-cafe";
+/** Union of valid room IDs (e.g. "cozy-cafe" | "rooftop-garden" | "starlight-lounge"). */
+export type RoomId = keyof typeof ROOMS;
+
+export const DEFAULT_ROOM: RoomId = "cozy-cafe";

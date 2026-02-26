@@ -2,8 +2,11 @@
 //
 // Core player data structures shared between client and server.
 //
-// Depends on: creature.ts
+// Depends on: constants/creatures.ts, constants/rooms.ts
 // Used by:    client stores, server room management
+
+import type { CreatureTypeId } from "../constants/creatures.js";
+import type { RoomId } from "../constants/rooms.js";
 
 export interface Position {
   x: number;
@@ -14,16 +17,16 @@ export interface Position {
 export interface Player {
   id: string;
   name: string;
-  creatureType: string;
+  creatureType: CreatureTypeId;
   position: Position;
-  roomId: string;
+  roomId: RoomId;
   skinId?: string;
 }
 
 export interface PlayerProfile {
   id: string;
   name: string;
-  creatureType: string;
+  creatureType: CreatureTypeId;
   equippedSkinId?: string;
   createdAt: number;
 }

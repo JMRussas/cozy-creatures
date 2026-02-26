@@ -7,35 +7,41 @@
 
 import type { CreatureDefinition } from "../types/creature.js";
 
-export const CREATURES: Record<string, CreatureDefinition> = {
+/** Animations shared by all creatures. Individual overrides can be added per-creature. */
+export const BASE_ANIMATIONS = ["idle", "walk", "sit", "wave"] as const;
+
+export const CREATURES = {
   cat: {
     id: "cat",
     name: "Cat",
     modelPath: "/assets/creatures/cat/model.glb",
     thumbnailPath: "/assets/creatures/cat/thumb.png",
-    animations: ["idle", "walk", "sit", "wave"],
+    animations: [...BASE_ANIMATIONS],
   },
   fox: {
     id: "fox",
     name: "Fox",
     modelPath: "/assets/creatures/fox/model.glb",
     thumbnailPath: "/assets/creatures/fox/thumb.png",
-    animations: ["idle", "walk", "sit", "wave"],
+    animations: [...BASE_ANIMATIONS],
   },
   bunny: {
     id: "bunny",
     name: "Bunny",
     modelPath: "/assets/creatures/bunny/model.glb",
     thumbnailPath: "/assets/creatures/bunny/thumb.png",
-    animations: ["idle", "walk", "sit", "wave"],
+    animations: [...BASE_ANIMATIONS],
   },
   frog: {
     id: "frog",
     name: "Frog",
     modelPath: "/assets/creatures/frog/model.glb",
     thumbnailPath: "/assets/creatures/frog/thumb.png",
-    animations: ["idle", "walk", "sit", "wave"],
+    animations: [...BASE_ANIMATIONS],
   },
-};
+} satisfies Record<string, CreatureDefinition>;
 
-export const DEFAULT_CREATURE = "cat";
+/** Union of valid creature type IDs (e.g. "cat" | "fox" | "bunny" | "frog"). */
+export type CreatureTypeId = keyof typeof CREATURES;
+
+export const DEFAULT_CREATURE: CreatureTypeId = "cat";

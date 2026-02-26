@@ -143,15 +143,15 @@ cozy-creatures/
 > **Duration estimate:** 1-2 days
 
 ### Tasks
-- [ ] Set up R3F `<Canvas>` with `OrthographicCamera` (isometric angle)
-- [ ] Create ground plane (flat color or simple grid)
-- [ ] Add soft ambient + directional lighting (warm, cozy tone)
-- [ ] Load a placeholder creature (simple box or low-poly model)
-- [ ] Implement click-to-move on the ground plane (raycasting)
-- [ ] Smooth creature movement (lerp toward target position)
-- [ ] Basic idle animation (gentle bob or breathing)
-- [ ] Zustand `playerStore` for local player position/state
-- [ ] Camera follows player with smooth damping
+- [x] Set up R3F `<Canvas>` with `OrthographicCamera` (isometric angle)
+- [x] Create ground plane (flat color or simple grid)
+- [x] Add soft ambient + directional lighting (warm, cozy tone)
+- [x] Load a placeholder creature (simple box or low-poly model)
+- [x] Implement click-to-move on the ground plane (raycasting)
+- [x] Smooth creature movement (lerp toward target position)
+- [x] Basic idle animation (gentle bob or breathing)
+- [x] Zustand `playerStore` for local player position/state
+- [x] Camera follows player with smooth damping
 
 ### Deliverable
 Open browser → see an isometric ground with a little creature. Click anywhere → creature walks there.
@@ -161,19 +161,19 @@ Open browser → see an isometric ground with a little creature. Click anywhere 
 
 ---
 
-## STAGE 2 — Multiplayer Server Core
+## STAGE 2 — Multiplayer Server Core ✅
 > **Goal:** Multiple browser tabs show each other's creatures moving in real time.
 > **Duration estimate:** 1-2 days
 
 ### Tasks
-- [ ] Express server with Socket.io attached
-- [ ] Define shared event types: `playerJoin`, `playerMove`, `playerLeave`
-- [ ] Server-side `RoomManager`: create room, join, leave, broadcast
-- [ ] Client `socket.ts`: connect, emit movement, listen for other players
-- [ ] `roomStore` tracks all players in the current room
-- [ ] Render other players' creatures (position interpolation)
-- [ ] Handle disconnect/reconnect gracefully
-- [ ] Rate-limit position updates (10-15Hz, not every frame)
+- [x] Express server with Socket.io attached
+- [x] Define shared event types: `playerJoin`, `playerMove`, `playerLeave`
+- [x] Server-side `RoomManager`: create room, join, leave, broadcast
+- [x] Client `socket.ts`: connect, emit movement, listen for other players
+- [x] `roomStore` tracks all players in the current room
+- [x] Render other players' creatures (position interpolation)
+- [x] Handle disconnect/reconnect gracefully
+- [x] Rate-limit position updates (10-15Hz, not every frame)
 
 ### Deliverable
 Open 2-3 browser tabs → each sees the others' creatures. Move one → others see it move.

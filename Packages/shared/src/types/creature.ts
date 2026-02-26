@@ -10,5 +10,5 @@ export interface CreatureDefinition {
   name: string;
   modelPath: string;
   thumbnailPath: string;
-  animations: string[];
+  animations: readonly string[];
 }
