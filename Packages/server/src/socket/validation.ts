@@ -4,7 +4,7 @@
 // from connectionHandler for testability.
 //
 // Depends on: @cozy/shared (Position, POSITION_MIN, POSITION_MAX)
-// Used by:    socket/connectionHandler.ts
+// Used by:    socket/connectionHandler.ts, socket/chatHandler.ts
 
 import type { Position } from "@cozy/shared";
 import { POSITION_MIN, POSITION_MAX } from "@cozy/shared";
@@ -19,10 +19,16 @@ export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
 
-/** Strip ASCII control characters (0x00–0x1F, 0x7F) from a string. */
+/**
+ * Strip characters that could disrupt display or inject invisible content:
+ * - ASCII control characters (0x00–0x1F, 0x7F)
+ * - Zero-width spaces and joiners (U+200B–U+200F)
+ * - Unicode line/paragraph separators and bidi overrides (U+2028–U+202F)
+ * - Byte Order Mark (U+FEFF)
+ */
 export function stripControlChars(s: string): string {
   // eslint-disable-next-line no-control-regex
-  return s.replace(/[\x00-\x1F\x7F]/g, "");
+  return s.replace(/[\x00-\x1F\x7F\u200B-\u200F\u2028-\u202F\uFEFF]/g, "");
 }
 
 /** Validate and clamp an untrusted position object. Non-finite values default to 0. */

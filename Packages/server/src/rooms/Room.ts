@@ -44,21 +44,21 @@ export class Room {
     }
   }
 
+  get playerCount(): number {
+    return this.players.size;
+  }
+
   isFull(): boolean {
     return this.players.size >= this.maxPlayers;
   }
 
   getState(): RoomState {
-    const players: Record<string, Player> = {};
-    for (const [id, player] of this.players) {
-      players[id] = player;
-    }
     return {
       id: this.id,
       name: this.name,
       theme: this.theme,
       maxPlayers: this.maxPlayers,
-      players,
+      players: Object.fromEntries(this.players),
     };
   }
 

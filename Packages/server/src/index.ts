@@ -2,7 +2,8 @@
 //
 // Express + Socket.io server. Handles HTTP routes and real-time connections.
 //
-// Depends on: config.ts, socket/connectionHandler.ts, rooms/RoomManager.ts
+// Depends on: config.ts, socket/connectionHandler.ts, socket/chatHandler.ts,
+//             rooms/RoomManager.ts
 // Used by:    pnpm dev:server
 
 import express from "express";
@@ -18,6 +19,7 @@ import type {
 import { config } from "./config.js";
 import { roomManager } from "./rooms/RoomManager.js";
 import { registerConnectionHandler } from "./socket/connectionHandler.js";
+import { registerChatHandler } from "./socket/chatHandler.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -68,16 +70,26 @@ io.use((socket, next) => {
 
 // Periodic sweep: rebuild connectionsPerIp from actual connected sockets
 // to prevent stale entries from missed disconnect events.
-const IP_SWEEP_INTERVAL_MS = 60_000;
+// Build into a fresh map first, then swap — avoids a brief window with
+// an empty map (harmless in single-threaded Node but cleaner semantics).
 setInterval(() => {
-  connectionsPerIp.clear();
+  const fresh = new Map<string, number>();
   for (const [, socket] of io.sockets.sockets) {
     const ip = socket.handshake.address;
-    connectionsPerIp.set(ip, (connectionsPerIp.get(ip) ?? 0) + 1);
+    fresh.set(ip, (fresh.get(ip) ?? 0) + 1);
   }
-}, IP_SWEEP_INTERVAL_MS).unref();
+  connectionsPerIp.clear();
+  for (const [ip, count] of fresh) {
+    connectionsPerIp.set(ip, count);
+  }
+}, config.sweepIntervalMs).unref();
 
+// Both handlers call io.on("connection") independently — Socket.io supports
+// multiple connection listeners and fires them in registration order.
+// connectionHandler must be registered first: it sets socket.data fields
+// (playerId, playerName, roomId) that chatHandler reads.
 registerConnectionHandler(io, roomManager);
+registerChatHandler(io);
 
 // --- Graceful shutdown ---
 function shutdown() {

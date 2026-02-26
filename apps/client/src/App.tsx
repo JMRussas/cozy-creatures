@@ -3,7 +3,7 @@
 // Shows a join screen before the scene. Once joined, renders the
 // isometric 3D scene with multiplayer.
 //
-// Depends on: scene/IsometricScene, stores/roomStore, @cozy/shared
+// Depends on: scene/IsometricScene, stores/roomStore, ui/ChatPanel, @cozy/shared
 // Used by:    main.tsx
 
 import { useState, memo } from "react";
@@ -17,6 +17,7 @@ import {
 } from "@cozy/shared";
 import { useRoomStore } from "./stores/roomStore";
 import IsometricScene from "./scene/IsometricScene";
+import ChatPanel from "./ui/ChatPanel";
 
 const MemoizedScene = memo(IsometricScene);
 
@@ -127,6 +128,8 @@ export default function App() {
           Leave
         </button>
       </div>
+
+      <ChatPanel />
     </div>
   );
 }

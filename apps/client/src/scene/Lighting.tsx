@@ -15,7 +15,7 @@ export default function Lighting() {
 
       {/* Main directional light — warm sunlight from top-right */}
       <directionalLight
-        position={LIGHTING.main.position as unknown as [number, number, number]}
+        position={[...LIGHTING.main.position]}
         intensity={LIGHTING.main.intensity}
         color={LIGHTING.main.color}
         castShadow
@@ -30,7 +30,7 @@ export default function Lighting() {
 
       {/* Subtle cool fill from opposite side */}
       <directionalLight
-        position={LIGHTING.fill.position as unknown as [number, number, number]}
+        position={[...LIGHTING.fill.position]}
         intensity={LIGHTING.fill.intensity}
         color={LIGHTING.fill.color}
       />

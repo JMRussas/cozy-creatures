@@ -7,7 +7,7 @@
 // Depends on: react, three, config
 // Used by:    creatures/Creature.tsx, creatures/RemoteCreature.tsx
 
-import { forwardRef, useMemo } from "react";
+import { forwardRef, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { CREATURE_GEOMETRY as CG } from "../config";
 
@@ -31,6 +31,10 @@ const CreatureModel = forwardRef<THREE.Group, CreatureModelProps>(
       () => new THREE.MeshStandardMaterial({ color: earColor, roughness: CG.roughness }),
       [earColor],
     );
+
+    // Dispose GPU materials when they are replaced or the component unmounts
+    useEffect(() => () => { bodyMat.dispose(); }, [bodyMat]);
+    useEffect(() => () => { earMat.dispose(); }, [earMat]);
 
     return (
       <group ref={ref}>

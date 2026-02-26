@@ -1,116 +1,152 @@
 # Architecture
 
-## System Lifecycle
+## System Overview
 
 ```
-AppBootstrap.Awake()
-  -> Register GameConfig with ServiceLocator
-  -> DontDestroyOnLoad(this)
-
-AppBootstrap.Start()
-  -> Initialize NetworkManager
-  -> Load Lobby scene via SceneLoader
-
-Lobby scene:
-  -> LobbyUI requests room list from RoomManager
-  -> User creates/joins room
-  -> RoomManager loads Room scene
-
-Room scene:
-  -> NetworkManager spawns player avatar (AvatarController + PlayerSync)
-  -> ChatManager joins room channel
-  -> HUD activates (ChatUI + EmoteWheelUI)
+Browser (React + R3F)         Server (Express + Socket.io)
+┌─────────────────────┐      ┌──────────────────────┐
+│ App.tsx              │      │ index.ts             │
+│ ├── JoinScreen       │      │ ├── connectionHandler│
+│ └── IsometricScene   │◄────►│ ├── chatHandler      │
+│     ├── CameraRig    │ws    │ ├── RoomManager      │
+│     ├── Ground       │      │ │   └── Room[]       │
+│     ├── Creature     │      │ └── validation       │
+│     ├── RemotePlayers│      └──────────────────────┘
+│     └── NetworkSync  │
+│                      │
+│ Stores:              │      Shared (@cozy/shared):
+│ ├── playerStore      │      ├── types/ (Player, ChatMessage, Events)
+│ ├── roomStore        │      └── constants/ (config, creatures, rooms)
+│ └── chatStore        │
+└─────────────────────┘
 ```
-
-## Namespaces
-
-| Namespace | Responsibility |
-|-----------|---------------|
-| `SocialApp.Core` | App init, config, scene management, service locator |
-| `SocialApp.Avatar` | Avatar rendering, movement, customization, animation |
-| `SocialApp.Chat` | Message routing, channels, chat UI |
-| `SocialApp.Networking` | Connection lifecycle, rooms, player sync, messages |
-| `SocialApp.UI` | Screens (main menu, lobby, HUD, emote wheel) |
-| `SocialApp.Data` | Data models, ScriptableObject definitions |
 
 ## State Machines
 
 ### Connection State
 ```
-Disconnected -> Connecting -> Connected -> InRoom
-     ^              |             |          |
-     +----- error --+             +-- leave -+
-     +------------ disconnect ---------------+
+idle -> joining -> joined
+ ^        |          |
+ +- error +          |
+ +------ leave ------+
 ```
 
-### Avatar State
+### Creature Movement
 ```
-Idle <-> Walking
+Idle <-> Walking (click-to-move)
   |        |
   v        v
-Emoting (returns to Idle when clip ends)
+Bobbing (idle animation, always active)
+```
+
+## Data Flow: Player Join
+
+```
+User submits join form
+  -> roomStore.join(name, creature, roomId)
+  -> connectSocket()
+  -> socket.emit("player:join", data, callback)
+  -> Server: connectionHandler validates, creates Player
+  -> roomManager.joinRoom() adds to Room
+  -> callback({ success: true, playerId })
+  -> socket.emit("room:state", fullState) to joining player
+  -> socket.to(room).emit("player:joined", player) to others
+  -> sendChatHistory(socket, roomId) sends recent messages
 ```
 
 ## Data Flow: Chat Message
 
 ```
-User types message
-  -> ChatUI.OnSendClicked()
-  -> ChatManager.SendMessage(text, channelId)
-  -> NetworkManager sends ChatNetMessage RPC
-  -> All clients: ChatManager.ReceiveMessage()
-  -> ChatUI.DisplayMessage()
+User types in ChatPanel
+  -> chatStore.sendMessage(content)
+  -> socket.emit("chat:message", { content })
+  -> Server: chatHandler validates, sanitizes, filters profanity
+  -> addToHistory(roomId, message) — ring buffer, max 50
+  -> io.to(roomId).emit("chat:message", message) to ALL in room
+  -> Client: chatStore listener appends to messages[]
+  -> ChatPanel renders in message list
+  -> addBubble(senderId, content) — shows above creature
+  -> setTimeout removes bubble after 5 seconds
 ```
 
-## Data Flow: Avatar Sync
+## Data Flow: Position Sync
 
 ```
-Local player moves
-  -> AvatarController.Update() reads input
-  -> Transform updates locally
-  -> PlayerSync sends position at fixed rate (10Hz)
-  -> Remote clients: PlayerSync interpolates position
-  -> AvatarAnimator.SetMoving() mirrors movement
+Player clicks ground
+  -> playerStore.setTarget(x, z), setIsMoving(true)
+  -> Creature.useFrame() lerps toward target each frame
+  -> playerStore.setPosition() updates current position
+  -> NetworkSync subscribes to playerStore
+  -> Throttled (100ms) socket.emit("player:move", {position})
+  -> Server: connectionHandler rate-limits, sanitizes position
+  -> room.updatePlayerPosition()
+  -> socket.to(room).emit("player:moved", {id, position})
+  -> Client: roomStore updates players[id].position
+  -> RemoteCreature.useFrame() lerps toward network position
 ```
 
-## Networking Decision
+## Server Event Handlers
 
-The project includes Netcode for GameObjects via UPM. The asset library also contains:
-- **PUN 2** — easiest setup, built-in room/lobby/chat, but Photon cloud dependency
-- **DarkRift Networking 2** — server-authoritative, self-hosted, more control
-- **Smooth Sync** — network transform smoothing (works with either)
+| Handler | File | Events |
+|---------|------|--------|
+| connectionHandler | socket/connectionHandler.ts | player:join, player:move, player:leave, room:list, disconnect |
+| chatHandler | socket/chatHandler.ts | chat:message |
 
-Current plan: start with Netcode for GameObjects (first-party), evaluate PUN 2 if we need faster iteration on rooms/chat.
+Both register via `io.on("connection")`. connectionHandler calls chatHandler's `sendChatHistory()` on join and `cleanupChat()` on disconnect.
 
-## Thread Safety
+## Validation Pipeline
 
-All game logic runs on Unity's main thread. Network callbacks from Netcode are automatically marshalled to the main thread. No explicit thread synchronization needed unless adding background tasks (e.g., asset loading, HTTP calls).
+All server inputs go through validation (socket/validation.ts):
+
+| Function | Purpose |
+|----------|---------|
+| `stripControlChars(s)` | Remove ASCII control chars, zero-width spaces, bidi overrides, BOM |
+| `sanitizePosition(raw)` | Clamp to [POSITION_MIN, POSITION_MAX], default 0 |
+| `createRateLimiter(ms)` | Per-key throttle with sweep for cleanup |
+| `filterProfanity(text)` | Replace blocked words with *** (profanityFilter.ts) |
+
+## Client Stores
+
+| Store | State | Responsibilities |
+|-------|-------|------------------|
+| playerStore | position, target, isMoving, name, creature | Local movement, animation state |
+| roomStore | roomId, players, localPlayerId, connection | Socket.io listeners, join/leave flow |
+| chatStore | messages, bubbles, unreadCount, isPanelOpen | Chat message history, bubble lifecycle |
 
 ## Dependency Map
 
 | File | Role | Depends On | Used By |
 |------|------|------------|---------|
-| AppBootstrap | App init | GameConfig, ServiceLocator | Main scene |
-| GameConfig | Config SO | nothing | All systems |
-| ServiceLocator | DI | nothing | All systems |
-| SceneLoader | Scene loading | nothing | AppBootstrap, RoomManager |
-| AvatarController | Per-player avatar | AvatarData, AvatarAnimator, GameConfig | NetworkManager |
-| AvatarCustomization | Visual setup | AvatarData, AvatarPartDefinition | AvatarController |
-| AvatarAnimator | Animation wrapper | EmoteDefinition | AvatarController |
-| AvatarData | Avatar definition | nothing | AvatarController, PlayerProfile |
-| ChatManager | Message routing | ChatMessage, ChatChannel, GameConfig | ChatUI, NetworkManager |
-| ChatUI | Chat display | ChatManager, ChatMessage | HUD |
-| NetworkManager | Connection | GameConfig | AppBootstrap, RoomManager |
-| RoomManager | Room lifecycle | NetworkManager, RoomData, SceneLoader | LobbyUI |
-| PlayerSync | Network sync | AvatarController, AvatarData | NetworkManager |
-| MainMenuUI | Login screen | GameConfig, NetworkManager | Main scene |
-| LobbyUI | Room browser | RoomManager, RoomData | Lobby scene |
-| HUD | In-room overlay | ChatUI, EmoteWheelUI | Room scene |
-| EmoteWheelUI | Emote picker | EmoteDefinition | HUD |
+| **Shared** | | | |
+| types/player.ts | Player, Position types | creatures, rooms | All |
+| types/chat.ts | ChatMessage type | rooms | chatStore, chatHandler |
+| types/events.ts | Socket event interfaces | All types | socket.ts, handlers |
+| constants/config.ts | Shared limits/timing | nothing | Client + server config |
+| **Server** | | | |
+| index.ts | Express + Socket.io setup | config, connectionHandler, chatHandler, RoomManager | Entry point |
+| config.ts | Env-var-driven config | @cozy/shared | handlers |
+| connectionHandler.ts | Join/move/leave/list events | validation, chatHandler, RoomManager, config | index.ts |
+| chatHandler.ts | Chat message handling + history | validation, profanityFilter, config | index.ts, connectionHandler |
+| profanityFilter.ts | Word-list filter | nothing | chatHandler |
+| validation.ts | Input sanitization + rate limiter | @cozy/shared | connectionHandler, chatHandler |
+| Room.ts | Player management per room | @cozy/shared | RoomManager |
+| RoomManager.ts | All room instances | Room, @cozy/shared | connectionHandler |
+| **Client** | | | |
+| App.tsx | Join screen + scene container | roomStore, IsometricScene, ChatPanel | main.tsx |
+| IsometricScene.tsx | R3F Canvas composition | CameraRig, Ground, Lighting, Creature, RemotePlayers, NetworkSync | App.tsx |
+| Creature.tsx | Local player movement | playerStore, roomStore, ChatBubble | IsometricScene |
+| RemoteCreature.tsx | Remote player interpolation | roomStore, ChatBubble | RemotePlayers |
+| ChatBubble.tsx | drei Html bubble overlay | chatStore | Creature, RemoteCreature |
+| ChatPanel.tsx | Chat UI panel | chatStore, roomStore | App.tsx |
+| NetworkSync.tsx | Throttled position emission | playerStore, socket | IsometricScene |
+| chatStore.ts | Chat messages + bubbles | socket, @cozy/shared | ChatPanel, ChatBubble, roomStore |
+| roomStore.ts | Room state + Socket.io listeners | socket, playerStore, chatStore | App, RemotePlayers |
+| playerStore.ts | Local player state | nothing | Creature, NetworkSync, roomStore |
+| socket.ts | Typed Socket.io singleton | @cozy/shared | roomStore, chatStore, NetworkSync |
 
 ## Gotchas & Pitfalls
 
-- Unity scene files (`.unity`) are serialized YAML. Don't try to hand-edit them — open in Unity Editor.
-- `FindFirstObjectByType<T>()` is the Unity 6 replacement for `FindObjectOfType<T>()`.
-- Netcode for GameObjects requires a `NetworkObject` component on any networked prefab.
-- TextMeshPro requires `using TMPro;` — not `using UnityEngine.UI;` for text fields.
+- **Shared package dist:** Server resolves `@cozy/shared` from `dist/`. After adding new shared constants, run `pnpm --filter @cozy/shared build` before server tests will pick them up.
+- **Socket.io multiple connection listeners:** Both connectionHandler and chatHandler register `io.on("connection")`. Socket.io supports this — both callbacks fire for each connection.
+- **Chat bubbles in R3F:** drei's `Html` component renders DOM inside a portal. TailwindCSS classes work because the stylesheet is global, but `pointer-events: none` is needed to prevent click interception.
+- **Bubble timers outside store:** `setTimeout` handles for chat bubbles live in module scope (not Zustand state) to enable proper `clearTimeout` cleanup.

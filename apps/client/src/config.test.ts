@@ -1,3 +1,8 @@
+// Cozy Creatures - Client Config Tests
+//
+// Depends on: config.ts, @cozy/shared
+// Used by:    test runner
+
 import { describe, it, expect } from "vitest";
 import { CREATURES } from "@cozy/shared";
 import { CREATURE_COLORS } from "./config";

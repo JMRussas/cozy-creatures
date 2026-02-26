@@ -4,7 +4,8 @@
 // Avoids hardcoding the same values in multiple places.
 //
 // Depends on: nothing
-// Used by:    client (NetworkSync, playerStore, App), server (connectionHandler, config)
+// Used by:    client (NetworkSync, playerStore, chatStore, App),
+//             server (connectionHandler, chatHandler, config)
 
 /** Maximum character length for player display names. */
 export const MAX_PLAYER_NAME = 20;
@@ -20,3 +21,15 @@ export const POSITION_MAX = 500;
 
 /** Default maximum players per room. */
 export const DEFAULT_MAX_PLAYERS = 20;
+
+/** Maximum character length for a chat message. */
+export const MAX_CHAT_MESSAGE = 200;
+
+/** Number of recent messages stored per room (server-side ring buffer). */
+export const CHAT_HISTORY_SIZE = 50;
+
+/** Minimum interval (ms) between chat messages per player (~2/sec). */
+export const CHAT_RATE_LIMIT_MS = 500;
+
+/** Duration (ms) a chat bubble is displayed above a creature. */
+export const CHAT_BUBBLE_DURATION_MS = 5000;

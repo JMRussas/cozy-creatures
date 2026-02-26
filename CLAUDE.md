@@ -26,10 +26,10 @@ cozy-creatures/
 │       │   ├── main.tsx          # Entry point
 │       │   ├── App.tsx           # Root component
 │       │   ├── scene/            # Three.js scene, camera, lighting
-│       │   ├── creatures/        # Creature rendering + animation
-│       │   ├── ui/               # React UI components
+│       │   ├── creatures/        # Creature rendering, chat bubbles
+│       │   ├── ui/               # React UI (ChatPanel)
 │       │   ├── networking/       # Socket.io client
-│       │   ├── stores/           # Zustand state stores
+│       │   ├── stores/           # Zustand stores (player, room, chat)
 │       │   ├── utils/            # Shared math helpers
 │       │   ├── input/            # Click-to-move, keyboard
 │       │   └── assets/           # Static assets
@@ -40,7 +40,7 @@ cozy-creatures/
 │   │   └── src/
 │   │       ├── index.ts          # Server entry point
 │   │       ├── config.ts         # Server config (env vars)
-│   │       ├── socket/           # Socket.io event handlers
+│   │       ├── socket/           # Socket.io handlers (connection, chat)
 │   │       ├── rooms/            # Room management
 │   │       ├── auth/             # Auth (simple → OAuth)
 │   │       ├── db/               # Database layer
@@ -65,6 +65,8 @@ cozy-creatures/
 | [.claude/architecture.md](.claude/architecture.md) | System architecture, state machines, data flow |
 | [.claude/asset_pipeline.md](.claude/asset_pipeline.md) | Asset catalog, import workflow |
 | [.claude/code_review.md](.claude/code_review.md) | Post-Stage 2 code review findings (18 items, all resolved) |
+| [.claude/code_review_stage3.md](.claude/code_review_stage3.md) | Post-Stage 3 code review (28 findings: 15 fixed, 8 medium open) |
+| [.claude/file_index.md](.claude/file_index.md) | Complete file index: summaries, line counts, dependency graphs |
 
 ## Tech Stack
 
@@ -75,6 +77,7 @@ cozy-creatures/
 | Build Tool | Vite 6 |
 | State | Zustand |
 | Real-time | Socket.io |
+| Voice Chat | LiveKit (self-hosted SFU) |
 | Backend | Express (TypeScript) |
 | Database | SQLite (→ Postgres later) |
 | Language | TypeScript throughout |

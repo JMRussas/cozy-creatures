@@ -3,7 +3,7 @@
 // Typed Socket.io client. Connects through Vite's dev proxy.
 //
 // Depends on: @cozy/shared (event types)
-// Used by:    stores/roomStore.ts, networking/NetworkSync.tsx
+// Used by:    stores/roomStore.ts, stores/chatStore.ts, networking/NetworkSync.tsx
 
 import { io, Socket } from "socket.io-client";
 import type {

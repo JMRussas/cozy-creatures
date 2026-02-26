@@ -13,6 +13,7 @@
 | Build Tool | Vite | 6.0 |
 | State | Zustand | 5.0 |
 | Real-time | Socket.io | 4.x |
+| Voice Chat | LiveKit (self-hosted SFU) | latest |
 | Backend | Node.js + Express | (TypeScript) |
 | Database | SQLite (→ Postgres later) | better-sqlite3 |
 | 3D Assets | glTF format | loaded via drei useGLTF |
@@ -50,15 +51,18 @@ cozy-creatures/
 │           │   ├── SkinShop.tsx
 │           │   ├── Inventory.tsx
 │           │   ├── MiniProfile.tsx
+│           │   ├── VoiceControls.tsx  # Mic/deafen toggles, settings
 │           │   └── Layout.tsx
 │           ├── networking/         # Socket.io client
 │           │   ├── socket.ts
 │           │   ├── useRoom.ts
-│           │   └── useChat.ts
+│           │   ├── useChat.ts
+│           │   └── useVoice.ts     # LiveKit voice connection
 │           ├── stores/             # Zustand stores
 │           │   ├── playerStore.ts
 │           │   ├── roomStore.ts
 │           │   ├── chatStore.ts
+│           │   ├── voiceStore.ts   # Voice state (muted, spatial, etc.)
 │           │   └── inventoryStore.ts
 │           ├── input/              # Click-to-move, keyboard
 │           │   └── useMovement.ts
@@ -87,7 +91,8 @@ cozy-creatures/
 │   │       └── api/                # REST endpoints
 │   │           ├── rooms.ts
 │   │           ├── players.ts
-│   │           └── skins.ts
+│   │           ├── skins.ts
+│   │           └── voice.ts       # LiveKit token generation
 │   │
 │   └── shared/                     # Shared TypeScript types
 │       ├── package.json
@@ -204,6 +209,67 @@ Type a message → it appears in the chat panel AND as a bubble over your creatu
 ### Parallelism
 - **Chat UI** (ChatPanel, bubbles) can be built independently of the **server chat handler**
 - **Profanity filter** is independent of both
+
+---
+
+## STAGE 3.5 — Voice Chat
+> **Goal:** Players can talk to each other in rooms via voice. Spatial audio mode available.
+> **Duration estimate:** 2-3 days
+
+### Tech: LiveKit (Self-Hosted SFU)
+
+LiveKit is an open-source WebRTC SFU that handles media routing, encoding, and room management.
+The client uses `livekit-client` SDK; the server generates access tokens via `livekit-server-sdk`.
+LiveKit runs as a separate service alongside the Express server.
+
+### Tasks
+
+#### 3.5A — LiveKit Infrastructure
+- [ ] Add LiveKit as a Docker Compose service (or install binary for local dev)
+- [ ] Configure LiveKit server (port, API key/secret in env vars)
+- [ ] Add `livekit-server-sdk` to `@cozy/server` for token generation
+- [ ] REST endpoint: `POST /api/voice/token` — generates a LiveKit access token scoped to the player's current room
+- [ ] Token includes player ID and room name as metadata
+
+#### 3.5B — Client Voice Connection
+- [ ] Add `livekit-client` to `@cozy/client`
+- [ ] `voiceStore` (Zustand): connection state, muted/deafened, speaking participants, spatial mode toggle
+- [ ] `useVoice.ts` hook: connect to LiveKit room, publish/unpublish audio track
+- [ ] On room join → fetch token from `/api/voice/token` → connect to LiveKit room
+- [ ] On room leave → disconnect from LiveKit room
+- [ ] Handle reconnection (LiveKit SDK handles most of this)
+
+#### 3.5C — Voice UI
+- [ ] Mic toggle button (mute/unmute) in HUD — prominent, always visible
+- [ ] Deafen toggle (stop hearing others)
+- [ ] Speaking indicator on creatures (glow, icon, or animated ring above head)
+- [ ] Speaking indicator in player list / chat panel
+- [ ] Push-to-talk option (configurable keybind, default: V)
+- [ ] Voice settings panel: input device selection, input volume, output volume
+- [ ] Visual feedback: mic level meter in settings
+
+#### 3.5D — Spatial Audio
+- [ ] Default mode: room-wide (all participants at equal volume)
+- [ ] Spatial mode toggle in voice settings
+- [ ] When spatial enabled: use Web Audio API `PannerNode` to position each remote audio source
+- [ ] Map creature world position → audio listener position (update on movement)
+- [ ] Configurable falloff: `VOICE_SPATIAL_MIN_DISTANCE`, `VOICE_SPATIAL_MAX_DISTANCE` in shared config
+- [ ] Players beyond max distance are silent; between min/max follows inverse distance
+- [ ] Visual indicator: subtle audio range ring around player (only visible to self, only in spatial mode)
+
+### Shared Types (`@cozy/shared`)
+- [ ] `VoiceState`: `{ muted: boolean, deafened: boolean, speaking: boolean, spatialEnabled: boolean }`
+- [ ] `VOICE_SPATIAL_MIN_DISTANCE`, `VOICE_SPATIAL_MAX_DISTANCE` constants
+- [ ] Voice-related Socket.io events: `voice:state` (broadcast mute/speaking status to other players)
+
+### Deliverable
+Join a room → click mic button → talk to other players. Toggle spatial audio → volume changes based on creature distance. Speaking indicators visible on active talkers.
+
+### Parallelism
+- **3.5A (infrastructure)** and **3.5C (UI mockup)** can start in parallel
+- **3.5B (connection)** depends on 3.5A
+- **3.5D (spatial audio)** depends on 3.5B
+- **Speaking indicators** (part of 3.5C) depend on 3.5B for real data
 
 ---
 
@@ -404,6 +470,13 @@ Stage 3: Chat
   ├── Chat UI (parallel)
   └── Chat Server (parallel)
 
+Stage 3.5: Voice Chat
+  ████████████
+  ├── 3.5A: LiveKit infra ──┐
+  ├── 3.5B: Client voice ───┘ (depends on infra)
+  ├── 3.5C: Voice UI ──────── (UI mockup parallel with infra)
+  └── 3.5D: Spatial audio ─── (depends on client voice)
+
 Stage 4: Creature System
   ████████████████
   ├── 4A: Asset creation ─────────── (ongoing, parallel with everything)
@@ -429,8 +502,18 @@ Stage 8: Mini-Games
   ├── 8B: Drawing game ─┐
   └── 8C: Trivia ───────┘ (parallel after framework)
 
+Stage 9: Expressive Avatars
+  ████████████████████████
+  ├── 9A: Audio lip sync ────── (can ship with Stage 3.5)
+  ├── 9B: Face tracking ──────┐
+  ├── 9C: Networking ──────────┘ (parallel)
+  ├── 9D: Creature expressions ── (needs morph targets from 4A)
+  └── 9E: Privacy UX ─────────── (independent)
+
 ART / ASSET PIPELINE (runs continuously in parallel)
   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+  NOTE: Creature models (Stage 4A) should include morph targets
+        for expressions even before Stage 9 is built
 ```
 
 ### Where Two People Could Work Simultaneously
@@ -439,11 +522,15 @@ ART / ASSET PIPELINE (runs continuously in parallel)
 |------------------------|--------------------------|
 | Stage 1: Isometric scene | Stage 2: Socket.io server |
 | Stage 3: Chat UI + bubbles | Stage 3: Chat server handler |
+| Stage 3.5C: Voice UI + indicators | Stage 3.5A: LiveKit infra + token API |
+| Stage 3.5D: Spatial audio | Stage 3.5B: Voice connection wiring |
 | Stage 4B: Creature rendering | Stage 5A+5B: Skin data + API |
 | Stage 5C+5D: Skin shop UI | Stage 6A: Room management |
 | Stage 6C: Sit spots/interactions | Stage 7C: Friends system backend |
 | Stage 7A: Emote wheel | Stage 8A: Game module framework |
 | Stage 7D: Visual polish | Stage 8B: Drawing game logic |
+| Stage 9B: Face tracking pipeline | Stage 9C: Expression networking |
+| Stage 9D: Creature expression rendering | Stage 9E: Privacy UX + settings |
 
 ### Where a Designer/Artist Could Work in Parallel
 
@@ -454,6 +541,78 @@ Starting from Day 1, an artist can produce:
 4. Emote animations (Stage 7A)
 5. UI design mockups (any stage)
 6. Sound design (Stage 7D)
+7. **Creature morph targets for expressions** — eyelids, jaw, brows (Stage 4A, needed by Stage 9)
+
+---
+
+## STAGE 9 — Expressive Avatars (Face Tracking)
+> **Goal:** Map player facial expressions to creature avatars via webcam/phone camera.
+> **Duration estimate:** 4-6 days
+
+### Tech: MediaPipe Face Mesh + Web Audio
+
+MediaPipe Face Mesh runs entirely client-side (WASM/WebGL), tracking 478 facial landmarks
+and outputting 52 ARKit-compatible blendshape coefficients. No video leaves the device —
+only numeric expression values are networked.
+
+### Tasks
+
+#### 9A — Audio-Driven Lip Sync (pairs with Voice Chat, Stage 3.5)
+- [ ] Analyze mic audio stream amplitude using Web Audio API `AnalyserNode`
+- [ ] Map volume level → `mouthOpen` blendshape value (smoothed, with configurable gain)
+- [ ] Drive creature jaw bone or morph target from `mouthOpen` value
+- [ ] Works for all players with mic enabled — no camera required
+- [ ] Shared type: `ExpressionState { mouthOpen: number }` (extended in 9B)
+
+#### 9B — Face Tracking Pipeline
+- [ ] Add `@mediapipe/tasks-vision` (Face Landmarker) to `@cozy/client`
+- [ ] `input/faceTracking.ts` module: initialize camera, run MediaPipe, extract blendshapes
+- [ ] Reduce 52 raw blendshapes to ~10 creature-relevant values:
+  - `eyeBlinkLeft`, `eyeBlinkRight` — blink
+  - `jawOpen` — mouth open (overrides audio lip sync when camera active)
+  - `mouthSmileLeft`, `mouthSmileRight` — smile
+  - `browInnerUp`, `browDownLeft`, `browDownRight` — eyebrow expression
+  - `headYaw`, `headPitch`, `headRoll` — head rotation
+- [ ] `expressionStore` (Zustand): holds current expression values, camera enabled state
+- [ ] Expression values update at ~30fps locally, networked at ~10Hz
+- [ ] Stylization layer: exaggerate values (2-3x multiplier) so they read on low-poly creatures
+- [ ] Per-creature expression mapping (a frog blinks differently than a cat)
+
+#### 9C — Networking
+- [ ] Shared type: `ExpressionState { eyeBlink, mouthOpen, smile, browRaise, headYaw, headPitch, headRoll }`
+- [ ] Socket.io event: `player:expression` — throttled alongside `player:move` (~10Hz)
+- [ ] Compact encoding: quantize floats to uint8 (0-255) — ~10 bytes per update
+- [ ] Server: broadcast expression data to room (no server-side processing needed)
+
+#### 9D — Creature Expression Rendering
+- [ ] Creature meshes need morph targets or bone rigs for: eyelids, jaw, eyebrows
+- [ ] Plan morph targets into asset pipeline (Stage 4A) even before tracking is built
+- [ ] `CreatureExpressionDriver.tsx`: applies `ExpressionState` to creature mesh
+- [ ] Smooth interpolation on received expression data (lerp, same as position)
+- [ ] Idle expression fallback: periodic auto-blinks, subtle breathing, for players without camera
+
+#### 9E — Privacy & UX
+- [ ] Camera access is opt-in: clear permission prompt explaining what's captured
+- [ ] Camera indicator visible when active (icon in HUD)
+- [ ] Easy toggle: on/off button in voice controls area
+- [ ] Settings: camera device selection, expression sensitivity slider, mirror preview
+- [ ] Mirror preview: small PiP showing what the camera sees + expression debug overlay
+- [ ] No video data ever leaves the client — only expression coefficients
+
+### Deliverable
+Enable camera → your creature's face mirrors your expressions in real time. Blink → creature blinks. Smile → creature smiles. Talk → mouth moves. Other players see your expressions. Players without cameras get natural idle animations.
+
+### Parallelism
+- **9A (audio lip sync)** can ship with Stage 3.5 (voice chat) — no camera dependency
+- **9B (face tracking)** and **9C (networking)** can develop in parallel
+- **9D (creature rendering)** depends on creature meshes with morph targets (Stage 4A planning)
+- **9E (UX)** is independent UI work
+- **Asset pipeline note:** Morph targets should be planned into creature models from Stage 4A onward
+
+### Key Dependencies
+- Stage 3.5 (voice chat) for audio lip sync
+- Stage 4A (creature models) must include morph targets / expression bones
+- MediaPipe WASM binary (~4MB) — lazy-load only when camera is enabled
 
 ---
 
@@ -463,10 +622,14 @@ Starting from Day 1, an artist can produce:
 |------|----------|---------|
 | Stage 0 | Auth strategy | Simple username (fast) vs OAuth (Google/Discord) from start |
 | Stage 2 | Tick rate | 10Hz (good enough for social) vs 30Hz (smoother but more bandwidth) |
+| Stage 3.5 | LiveKit hosting | Local Docker for dev, self-host for prod, or LiveKit Cloud |
 | Stage 4 | Creature art source | Commission artist, use AI generation as base, modify existing assets |
 | Stage 5 | Monetization | Free skins via play time, premium currency, seasonal battle pass, or all free |
 | Stage 6 | Room creation | Only pre-made rooms, or user-created rooms with decoration? |
 | Stage 8 | Game scope | 2-3 simple games vs 1 deep game |
+| Stage 9 | Lip sync first? | Audio-only lip sync with voice chat (fast) vs full face tracking from start |
+| Stage 9 | MediaPipe version | @mediapipe/tasks-vision (newer, recommended) vs legacy @mediapipe/face_mesh |
+| Stage 9 | Expression fidelity | ~10 blendshapes (performant) vs full 52 ARKit set (detailed but heavier network) |
 
 ---
 

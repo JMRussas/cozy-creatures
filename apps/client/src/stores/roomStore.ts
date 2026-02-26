@@ -3,13 +3,16 @@
 // Zustand store for room state: all players (including remote), connection status.
 // Wires Socket.io listeners to keep state in sync with the server.
 //
-// Depends on: @cozy/shared (Player, RoomInfo), networking/socket.ts, stores/playerStore
-// Used by:    App.tsx, scene/IsometricScene.tsx
+// Depends on: @cozy/shared (Player, CreatureTypeId, RoomId), networking/socket.ts, stores/playerStore,
+//             stores/chatStore
+// Used by:    App.tsx, creatures/Creature, creatures/RemotePlayers, creatures/RemoteCreature,
+//             ui/ChatPanel
 
 import { create } from "zustand";
-import type { Player, RoomInfo, CreatureTypeId, RoomId } from "@cozy/shared";
+import type { Player, CreatureTypeId, RoomId } from "@cozy/shared";
 import { getSocket, connectSocket, disconnectSocket } from "../networking/socket";
 import { usePlayerStore } from "./playerStore";
+import { useChatStore } from "./chatStore";
 
 const socket = getSocket();
 
@@ -25,12 +28,10 @@ interface RoomStore {
   isConnected: boolean;
   joinState: JoinState;
   joinError: string | null;
-  rooms: RoomInfo[];
 
   // Actions
   join: (name: string, creatureType: CreatureTypeId, roomId: RoomId) => void;
   leave: () => void;
-  fetchRooms: () => void;
 }
 
 /** Handle for the active join timeout, cleared on callback or leave. */
@@ -50,7 +51,6 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   isConnected: false,
   joinState: "idle",
   joinError: null,
-  rooms: [],
 
   join: (name, creatureType, roomId) => {
     const { joinState } = get();
@@ -105,14 +105,9 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
 
     // Reset local player position so re-joining starts fresh
     usePlayerStore.getState().reset();
+    useChatStore.getState().clearChat();
   },
 
-  fetchRooms: () => {
-    connectSocket();
-    socket.emit("room:list", (rooms) => {
-      set({ rooms });
-    });
-  },
 }));
 
 // --- Socket event listeners ---
@@ -144,6 +139,7 @@ socket.off("disconnect").on("disconnect", () => {
 });
 
 socket.off("room:state").on("room:state", (state) => {
+  if (useRoomStore.getState().joinState !== "joined") return;
   useRoomStore.setState({
     roomId: state.id,
     players: state.players,
@@ -156,6 +152,9 @@ socket.off("player:joined").on("player:joined", (player) => {
   }));
 });
 
+// TODO(Stage 4): player:moved fires ~10Hz per remote player, creating a new
+// players object each time. For large rooms, switch to ref-based positions
+// (e.g. Map<string, THREE.Vector3>) read directly in useFrame, bypassing React.
 socket.off("player:moved").on("player:moved", ({ id, position }) => {
   useRoomStore.setState((prev) => {
     const player = prev.players[id];

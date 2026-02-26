@@ -4,18 +4,12 @@
 // All handlers are wrapped in try-catch and inputs are validated/sanitized.
 //
 // Depends on: @cozy/shared (event types, Player, CREATURES, DEFAULT_ROOM, MAX_PLAYER_NAME),
-//             socket/validation.ts, rooms/RoomManager.ts, config.ts
+//             socket/types.ts, socket/validation.ts, socket/chatHandler.ts,
+//             rooms/RoomManager.ts, config.ts
 // Used by:    index.ts
 
-import { Server, Socket } from "socket.io";
 import { randomUUID } from "crypto";
-import type {
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData,
-  Player,
-} from "@cozy/shared";
+import type { Player } from "@cozy/shared";
 import {
   CREATURES,
   DEFAULT_CREATURE,
@@ -26,30 +20,16 @@ import {
 import type { CreatureTypeId, RoomId } from "@cozy/shared";
 import type { RoomManager } from "../rooms/RoomManager.js";
 import { config } from "../config.js";
+import type { TypedServer, TypedSocket } from "./types.js";
 import { sanitizePosition, stripControlChars, createRateLimiter } from "./validation.js";
-
-type TypedServer = Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->;
-
-type TypedSocket = Socket<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->;
+import { sendChatHistory, cleanupChat, clearHistory } from "./chatHandler.js";
 
 // --- Rate limiting ---
 
 const moveLimiter = createRateLimiter(config.moveRateMs);
 
-// Sweep stale rate-limiter entries every 60s (catches missed disconnects)
-const SWEEP_INTERVAL_MS = 60_000;
-const SWEEP_MAX_AGE_MS = 30_000;
-setInterval(() => moveLimiter.sweep(SWEEP_MAX_AGE_MS), SWEEP_INTERVAL_MS).unref();
+// Sweep stale rate-limiter entries periodically (catches missed disconnects)
+setInterval(() => moveLimiter.sweep(config.sweepMaxAgeMs), config.sweepIntervalMs).unref();
 
 // --- Main handler ---
 
@@ -131,6 +111,9 @@ export function registerConnectionHandler(
         // Notify others in the room
         socket.to(safeRoomId).emit("player:joined", player);
 
+        // Send recent chat history to the new player
+        sendChatHistory(socket, safeRoomId);
+
         console.log(
           `[socket] ${safeName} (${playerId}) joined ${safeRoomId}`,
         );
@@ -170,6 +153,8 @@ export function registerConnectionHandler(
     socket.on("player:leave", () => {
       try {
         handleLeave(socket, roomManager);
+        moveLimiter.clear(socket.id);
+        cleanupChat(socket.id);
       } catch (err) {
         console.error("[socket] player:leave error:", err);
       }
@@ -191,6 +176,7 @@ export function registerConnectionHandler(
         console.log(`[socket] disconnected: ${socket.id} (${reason})`);
         handleLeave(socket, roomManager);
         moveLimiter.clear(socket.id);
+        cleanupChat(socket.id);
       } catch (err) {
         console.error("[socket] disconnect cleanup error:", err);
       }
@@ -200,7 +186,7 @@ export function registerConnectionHandler(
 
 function handleLeave(
   socket: TypedSocket,
-  roomManager: { leaveRoom(roomId: string, playerId: string): void },
+  roomManager: RoomManager,
 ): void {
   const { playerId, roomId, playerName } = socket.data;
   if (!playerId || !roomId) return;
@@ -208,6 +194,12 @@ function handleLeave(
   roomManager.leaveRoom(roomId, playerId);
   socket.to(roomId).emit("player:left", { id: playerId });
   socket.leave(roomId);
+
+  // Free chat history when the last player leaves
+  const room = roomManager.getRoom(roomId);
+  if (room && room.playerCount === 0) {
+    clearHistory(roomId);
+  }
 
   console.log(`[socket] ${playerName} (${playerId}) left ${roomId}`);
 

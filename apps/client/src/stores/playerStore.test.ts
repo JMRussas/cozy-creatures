@@ -1,3 +1,8 @@
+// Cozy Creatures - Player Store Tests
+//
+// Depends on: stores/playerStore.ts
+// Used by:    test runner
+
 import { describe, it, expect, beforeEach } from "vitest";
 import { usePlayerStore } from "./playerStore";
 

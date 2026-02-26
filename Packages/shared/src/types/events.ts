@@ -16,7 +16,7 @@ export type JoinResponse =
   | { success: true; playerId: string }
   | { success: false; error: string };
 
-// Client → Server events
+/** Events the client can emit to the server. */
 export interface ClientToServerEvents {
   "player:join": (
     data: { name: string; creatureType: CreatureTypeId; roomId: RoomId },
@@ -24,18 +24,18 @@ export interface ClientToServerEvents {
   ) => void;
   "player:move": (data: { position: Position }) => void;
   "player:leave": () => void;
-  // Stage 3 — not yet implemented
+
   "chat:message": (data: { content: string }) => void;
   "room:list": (callback: (rooms: RoomInfo[]) => void) => void;
 }
 
-// Server → Client events
+/** Events the server can emit to clients. */
 export interface ServerToClientEvents {
   "room:state": (state: RoomState) => void;
   "player:joined": (player: Player) => void;
   "player:moved": (data: { id: string; position: Position }) => void;
   "player:left": (data: { id: string }) => void;
-  // Stage 3 — not yet implemented
+
   "chat:message": (message: ChatMessage) => void;
   "chat:history": (messages: ChatMessage[]) => void;
 }
@@ -43,9 +43,9 @@ export interface ServerToClientEvents {
 // Inter-server events (unused for now)
 export interface InterServerEvents {}
 
-// Socket data attached to each connection
+/** Per-socket data attached to each connection by the server. */
 export interface SocketData {
   playerId?: string;
   playerName?: string;
-  roomId?: string;
+  roomId?: RoomId;
 }

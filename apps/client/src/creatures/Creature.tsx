@@ -3,14 +3,17 @@
 // Moves toward click target with smooth lerp. Has a gentle idle bob.
 // Uses shared CreatureModel for the visual mesh.
 //
-// Depends on: @react-three/fiber, three, stores/playerStore, CreatureModel, config, utils/math
+// Depends on: @react-three/fiber, three, stores/playerStore, stores/roomStore,
+//             CreatureModel, ChatBubble, config, utils/math
 // Used by:    scene/IsometricScene
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { usePlayerStore } from "../stores/playerStore";
+import { useRoomStore } from "../stores/roomStore";
 import CreatureModel from "./CreatureModel";
+import ChatBubble from "./ChatBubble";
 import { lerpAngle } from "../utils/math";
 import {
   MOVE_SPEED,
@@ -26,6 +29,7 @@ export default function Creature() {
   const groupRef = useRef<THREE.Group>(null);
   const visualRef = useRef<THREE.Group>(null);
   const creatureType = usePlayerStore((s) => s.creatureType);
+  const localPlayerId = useRoomStore((s) => s.localPlayerId);
   const colors = CREATURE_COLORS[creatureType];
 
   // Pre-allocated vectors reused every frame (avoid GC pressure)
@@ -61,11 +65,14 @@ export default function Creature() {
         1 - Math.exp(-LOCAL_ROTATION_SPEED * delta),
       );
 
+      // TODO(Stage 4): move to ref-based position to avoid per-frame setState
       store.setPosition({ x: currentPos.x, y: currentPos.y, z: currentPos.z });
     } else if (store.isMoving) {
-      // Arrived
-      store.setIsMoving(false);
-      store.setPosition({ x: store.target.x, y: 0, z: store.target.z });
+      // Arrived — batch into a single setState to avoid an extra render
+      usePlayerStore.setState({
+        isMoving: false,
+        position: { x: store.target.x, y: 0, z: store.target.z },
+      });
       currentPos.set(store.target.x, 0, store.target.z);
     }
 
@@ -84,6 +91,8 @@ export default function Creature() {
         <circleGeometry args={[CREATURE_GEOMETRY.shadowRadius, CREATURE_GEOMETRY.shadowSegments]} />
         <meshBasicMaterial color="#000000" transparent opacity={CREATURE_GEOMETRY.shadowOpacity} />
       </mesh>
+
+      {localPlayerId && <ChatBubble playerId={localPlayerId} />}
     </group>
   );
 }

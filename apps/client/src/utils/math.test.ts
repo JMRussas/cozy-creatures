@@ -1,3 +1,8 @@
+// Cozy Creatures - Math Utilities Tests
+//
+// Depends on: utils/math.ts
+// Used by:    test runner
+
 import { describe, it, expect } from "vitest";
 import { lerpAngle } from "./math";
 
