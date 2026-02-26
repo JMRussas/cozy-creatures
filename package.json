@@ -1,0 +1,16 @@
+{
+  "name": "cozy-creatures",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter @cozy/client --filter @cozy/server dev",
+    "dev:client": "pnpm --filter @cozy/client dev",
+    "dev:server": "pnpm --filter @cozy/server dev",
+    "build": "pnpm --filter @cozy/shared build && pnpm --filter @cozy/client build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
