@@ -33,3 +33,17 @@ export const CHAT_RATE_LIMIT_MS = 500;
 
 /** Duration (ms) a chat bubble is displayed above a creature. */
 export const CHAT_BUBBLE_DURATION_MS = 5000;
+
+// --- Voice Chat ---
+
+/** Minimum distance (world units) for spatial audio — full volume within this range. */
+export const VOICE_SPATIAL_MIN_DISTANCE = 2;
+
+/** Maximum distance (world units) for spatial audio — silent beyond this range. */
+export const VOICE_SPATIAL_MAX_DISTANCE = 20;
+
+/** Default push-to-talk key code. */
+export const VOICE_PTT_KEY = "KeyV";
+
+/** Minimum interval (ms) between voice state broadcasts. */
+export const VOICE_STATE_THROTTLE_MS = 200;

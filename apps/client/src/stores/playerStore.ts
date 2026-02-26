@@ -45,5 +45,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
       position: { ...INITIAL_POSITION },
       target: { ...INITIAL_POSITION },
       isMoving: false,
+      creatureType: DEFAULT_CREATURE,
+      name: "",
     }),
 }));

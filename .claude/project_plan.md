@@ -477,11 +477,13 @@ Stage 3.5: Voice Chat
   ├── 3.5C: Voice UI ──────── (UI mockup parallel with infra)
   └── 3.5D: Spatial audio ─── (depends on client voice)
 
-Stage 4: Creature System
+Stage 4: Creature System ✅
   ████████████████
-  ├── 4A: Asset creation ─────────── (ongoing, parallel with everything)
-  ├── 4B: Creature rendering
-  └── 4C: Selection UI
+  ├── 4E: Shared types/constants (6 Cute Zoo 4 creatures) ✅
+  ├── 4A: Asset pipeline (FBX→glTF via Blender, 6 models) ✅
+  ├── 4D: SQLite persistence (better-sqlite3, player queries) ✅
+  ├── 4B: Creature rendering (useGLTF, animations, fallback) ✅
+  └── 4C: Selection UI (CreaturePicker, CreaturePreview, localStorage) ✅
 
 Stage 5: Skins                Stage 6: Hangout Spaces
   ████████████████               ████████████████

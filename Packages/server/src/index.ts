@@ -3,7 +3,7 @@
 // Express + Socket.io server. Handles HTTP routes and real-time connections.
 //
 // Depends on: config.ts, socket/connectionHandler.ts, socket/chatHandler.ts,
-//             rooms/RoomManager.ts
+//             socket/voiceHandler.ts, api/voice.ts, rooms/RoomManager.ts, db/database.ts
 // Used by:    pnpm dev:server
 
 import express from "express";
@@ -20,6 +20,9 @@ import { config } from "./config.js";
 import { roomManager } from "./rooms/RoomManager.js";
 import { registerConnectionHandler } from "./socket/connectionHandler.js";
 import { registerChatHandler } from "./socket/chatHandler.js";
+import { registerVoiceHandler } from "./socket/voiceHandler.js";
+import { voiceRouter } from "./api/voice.js";
+import { getDb, closeDb } from "./db/database.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -39,6 +42,8 @@ const io = new Server<
 
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
+
+app.use("/api", voiceRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: Date.now() });
@@ -90,10 +95,15 @@ setInterval(() => {
 // (playerId, playerName, roomId) that chatHandler reads.
 registerConnectionHandler(io, roomManager);
 registerChatHandler(io);
+registerVoiceHandler(io);
+
+// --- Initialize database ---
+getDb();
 
 // --- Graceful shutdown ---
 function shutdown() {
   console.log("[server] shutting down...");
+  closeDb();
   io.close(() => {
     httpServer.close(() => {
       console.log("[server] stopped");

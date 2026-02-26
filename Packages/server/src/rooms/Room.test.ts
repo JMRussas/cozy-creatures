@@ -22,7 +22,7 @@ function makePlayer(id: string, name = "Player"): Player {
   return {
     id,
     name,
-    creatureType: "cat",
+    creatureType: "otter",
     position: { x: 0, y: 0, z: 0 },
     roomId: "cozy-cafe",
   };

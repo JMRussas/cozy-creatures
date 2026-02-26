@@ -3,14 +3,15 @@
 // Side panel with message list, input field, and send button.
 // Scrolls to bottom on new messages. Shows unread badge when collapsed.
 //
-// Depends on: stores/chatStore, stores/roomStore, @cozy/shared (MAX_CHAT_MESSAGE),
-//             zustand/react/shallow
+// Depends on: stores/chatStore, stores/roomStore, stores/voiceStore,
+//             @cozy/shared (MAX_CHAT_MESSAGE), zustand/react/shallow
 // Used by:    App.tsx
 
 import { useState, useRef, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useChatStore } from "../stores/chatStore";
 import { useRoomStore } from "../stores/roomStore";
+import { useVoiceStore } from "../stores/voiceStore";
 import { MAX_CHAT_MESSAGE } from "@cozy/shared";
 
 export default function ChatPanel() {
@@ -109,7 +110,12 @@ export default function ChatPanel() {
                   : "text-blue-300"
               }`}
             >
-              {msg.senderName}:
+              {msg.senderName}
+              <SpeakingDot
+                playerId={msg.senderId}
+                isLocal={msg.senderId === localPlayerId}
+              />
+              :
             </span>{" "}
             <span className="text-gray-200">{msg.content}</span>
           </div>
@@ -136,5 +142,25 @@ export default function ChatPanel() {
         </button>
       </form>
     </div>
+  );
+}
+
+/** Per-player speaking dot — isolates voiceStore re-renders from ChatPanel. */
+function SpeakingDot({
+  playerId,
+  isLocal,
+}: {
+  playerId: string;
+  isLocal: boolean;
+}) {
+  const speaking = useVoiceStore((s) =>
+    isLocal ? s.speaking : (s.remoteSpeaking[playerId] ?? false),
+  );
+  if (!speaking) return null;
+  return (
+    <span
+      className="ml-1 inline-block h-2 w-2 rounded-full bg-green-400"
+      title="Speaking"
+    />
   );
 }

@@ -1,12 +1,15 @@
 // Cozy Creatures - App Root Component
 //
 // Shows a join screen before the scene. Once joined, renders the
-// isometric 3D scene with multiplayer.
+// isometric 3D scene with multiplayer and voice chat. Persists
+// name, creature, and room selection to localStorage.
 //
-// Depends on: scene/IsometricScene, stores/roomStore, ui/ChatPanel, @cozy/shared
+// Depends on: scene/IsometricScene, stores/roomStore, ui/ChatPanel,
+//             ui/VoiceControls, ui/CreaturePicker, ui/CreaturePreview,
+//             networking/useVoice, @cozy/shared
 // Used by:    main.tsx
 
-import { useState, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import type { CreatureTypeId, RoomId } from "@cozy/shared";
 import {
   CREATURES,
@@ -18,6 +21,27 @@ import {
 import { useRoomStore } from "./stores/roomStore";
 import IsometricScene from "./scene/IsometricScene";
 import ChatPanel from "./ui/ChatPanel";
+import VoiceControls from "./ui/VoiceControls";
+import CreaturePicker from "./ui/CreaturePicker";
+import CreaturePreview from "./ui/CreaturePreview";
+import useVoice from "./networking/useVoice";
+
+// --- localStorage keys ---
+const LS_NAME = "cozy-creatures:name";
+const LS_CREATURE = "cozy-creatures:creature";
+const LS_ROOM = "cozy-creatures:room";
+
+function loadStored<T extends string>(key: string, validate: (v: string) => boolean, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    if (v && validate(v)) return v as T;
+  } catch { /* localStorage unavailable */ }
+  return fallback;
+}
+
+function saveStored(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* ignore */ }
+}
 
 const MemoizedScene = memo(IsometricScene);
 
@@ -30,9 +54,18 @@ export default function App() {
   const join = useRoomStore((s) => s.join);
   const leave = useRoomStore((s) => s.leave);
 
-  const [name, setName] = useState("");
-  const [creature, setCreature] = useState<CreatureTypeId>(DEFAULT_CREATURE);
-  const [selectedRoom, setSelectedRoom] = useState<RoomId>(DEFAULT_ROOM);
+  const [name, setName] = useState<string>(() => loadStored(LS_NAME, (v) => v.trim().length > 0, ""));
+  const [creature, setCreature] = useState<CreatureTypeId>(
+    () => loadStored(LS_CREATURE, (v) => v in CREATURES, DEFAULT_CREATURE),
+  );
+  const [selectedRoom, setSelectedRoom] = useState<RoomId>(
+    () => loadStored(LS_ROOM, (v) => v in ROOMS, DEFAULT_ROOM),
+  );
+
+  // Persist selections to localStorage
+  useEffect(() => { saveStored(LS_NAME, name); }, [name]);
+  useEffect(() => { saveStored(LS_CREATURE, creature); }, [creature]);
+  useEffect(() => { saveStored(LS_ROOM, selectedRoom); }, [selectedRoom]);
 
   const inRoom = roomId !== null;
 
@@ -50,9 +83,10 @@ export default function App() {
         <form
           onSubmit={handleJoin}
           className="flex flex-col gap-4 rounded-xl bg-gray-800 p-8 shadow-lg"
+          style={{ maxWidth: "540px", width: "100%" }}
         >
           <h1 className="text-3xl font-bold text-purple-300">Cozy Creatures</h1>
-          <p className="text-sm text-gray-400">Pick a name and join a room</p>
+          <p className="text-sm text-gray-400">Pick a name and creature, then join a room</p>
 
           {joinError && (
             <p className="text-sm text-red-400">{joinError}</p>
@@ -69,18 +103,17 @@ export default function App() {
             className="rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
           />
 
-          <select
-            value={creature}
-            onChange={(e) => setCreature(e.target.value as CreatureTypeId)}
-            disabled={isJoining}
-            className="rounded bg-gray-700 px-3 py-2 text-white outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-          >
-            {Object.values(CREATURES).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {/* Creature selection: preview + picker grid */}
+          <div className="flex gap-4">
+            <CreaturePreview creatureType={creature} />
+            <div className="flex-1">
+              <CreaturePicker
+                selected={creature}
+                onSelect={setCreature}
+                disabled={isJoining}
+              />
+            </div>
+          </div>
 
           <select
             value={selectedRoom}
@@ -107,6 +140,23 @@ export default function App() {
     );
   }
 
+  return <InRoomView roomId={roomId!} isConnected={isConnected} playerCount={playerCount} leave={leave} />;
+}
+
+/** Separate component so hooks (useVoice) are never called conditionally. */
+function InRoomView({
+  roomId,
+  isConnected,
+  playerCount,
+  leave,
+}: {
+  roomId: string;
+  isConnected: boolean;
+  playerCount: number;
+  leave: () => void;
+}) {
+  useVoice();
+
   return (
     <div className="relative h-full w-full">
       <MemoizedScene />
@@ -121,12 +171,15 @@ export default function App() {
           {playerCount} player{playerCount !== 1 ? "s" : ""}
           {isConnected ? "" : " (reconnecting...)"}
         </div>
-        <button
-          onClick={leave}
-          className="pointer-events-auto w-fit rounded bg-red-600/80 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-500"
-        >
-          Leave
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={leave}
+            className="pointer-events-auto w-fit rounded bg-red-600/80 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-500"
+          >
+            Leave
+          </button>
+          <VoiceControls />
+        </div>
       </div>
 
       <ChatPanel />

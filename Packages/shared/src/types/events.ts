@@ -2,12 +2,13 @@
 //
 // Type-safe Socket.io event definitions shared between client and server.
 //
-// Depends on: player.ts, room.ts, chat.ts
+// Depends on: player.ts, room.ts, chat.ts, voice.ts
 // Used by:    client socket.ts, server socket handlers
 
 import type { Player, Position } from "./player.js";
 import type { RoomInfo, RoomState } from "./room.js";
 import type { ChatMessage } from "./chat.js";
+import type { VoiceState } from "./voice.js";
 import type { CreatureTypeId } from "../constants/creatures.js";
 import type { RoomId } from "../constants/rooms.js";
 
@@ -27,6 +28,8 @@ export interface ClientToServerEvents {
 
   "chat:message": (data: { content: string }) => void;
   "room:list": (callback: (rooms: RoomInfo[]) => void) => void;
+
+  "voice:state": (data: VoiceState) => void;
 }
 
 /** Events the server can emit to clients. */
@@ -38,6 +41,8 @@ export interface ServerToClientEvents {
 
   "chat:message": (message: ChatMessage) => void;
   "chat:history": (messages: ChatMessage[]) => void;
+
+  "voice:state": (data: { id: string } & VoiceState) => void;
 }
 
 // Inter-server events (unused for now)

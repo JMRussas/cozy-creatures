@@ -21,6 +21,13 @@ describe("creature constants", () => {
     }
   });
 
+  it("every creature has a non-empty description", () => {
+    for (const def of Object.values(CREATURES)) {
+      expect(def.description, `${def.id} description`).toBeTruthy();
+      expect(typeof def.description).toBe("string");
+    }
+  });
+
   it("every creature includes the base animations", () => {
     for (const def of Object.values(CREATURES)) {
       for (const anim of BASE_ANIMATIONS) {

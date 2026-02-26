@@ -14,6 +14,10 @@ import {
   CHAT_HISTORY_SIZE,
   CHAT_RATE_LIMIT_MS,
   CHAT_BUBBLE_DURATION_MS,
+  VOICE_SPATIAL_MIN_DISTANCE,
+  VOICE_SPATIAL_MAX_DISTANCE,
+  VOICE_PTT_KEY,
+  VOICE_STATE_THROTTLE_MS,
 } from "./config.js";
 
 describe("shared config constants", () => {
@@ -58,5 +62,25 @@ describe("shared config constants", () => {
   it("CHAT_BUBBLE_DURATION_MS is positive", () => {
     expect(CHAT_BUBBLE_DURATION_MS).toBe(5000);
     expect(CHAT_BUBBLE_DURATION_MS).toBeGreaterThan(0);
+  });
+
+  it("VOICE_SPATIAL_MIN_DISTANCE is positive", () => {
+    expect(VOICE_SPATIAL_MIN_DISTANCE).toBe(2);
+    expect(VOICE_SPATIAL_MIN_DISTANCE).toBeGreaterThan(0);
+  });
+
+  it("VOICE_SPATIAL_MAX_DISTANCE > VOICE_SPATIAL_MIN_DISTANCE", () => {
+    expect(VOICE_SPATIAL_MAX_DISTANCE).toBe(20);
+    expect(VOICE_SPATIAL_MAX_DISTANCE).toBeGreaterThan(VOICE_SPATIAL_MIN_DISTANCE);
+  });
+
+  it("VOICE_PTT_KEY is a valid key code string", () => {
+    expect(VOICE_PTT_KEY).toBe("KeyV");
+    expect(typeof VOICE_PTT_KEY).toBe("string");
+  });
+
+  it("VOICE_STATE_THROTTLE_MS is positive", () => {
+    expect(VOICE_STATE_THROTTLE_MS).toBe(200);
+    expect(VOICE_STATE_THROTTLE_MS).toBeGreaterThan(0);
   });
 });

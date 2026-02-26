@@ -39,11 +39,15 @@ describe("playerStore", () => {
   it("reset returns to initial state", () => {
     usePlayerStore.getState().setTarget(5, 3);
     usePlayerStore.getState().setPosition({ x: 10, y: 0, z: 10 });
+    usePlayerStore.getState().setName("TestPlayer");
+    usePlayerStore.getState().setCreatureType("possum");
     usePlayerStore.getState().reset();
     const state = usePlayerStore.getState();
     expect(state.position).toEqual({ x: 0, y: 0, z: 0 });
     expect(state.target).toEqual({ x: 0, y: 0, z: 0 });
     expect(state.isMoving).toBe(false);
+    expect(state.creatureType).toBe("otter");
+    expect(state.name).toBe("");
   });
 
   it("setName updates name", () => {
@@ -52,7 +56,7 @@ describe("playerStore", () => {
   });
 
   it("setCreatureType updates creature type", () => {
-    usePlayerStore.getState().setCreatureType("fox");
-    expect(usePlayerStore.getState().creatureType).toBe("fox");
+    usePlayerStore.getState().setCreatureType("possum");
+    expect(usePlayerStore.getState().creatureType).toBe("possum");
   });
 });

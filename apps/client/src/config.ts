@@ -31,6 +31,9 @@ export const REMOTE_LERP_SPEED = 6;
 /** Exponential smoothing speed for remote creature rotation. */
 export const REMOTE_ROTATION_SPEED = 10;
 
+/** Duration (seconds) of animation crossfade blend between clips. */
+export const ANIMATION_CROSSFADE_DURATION = 0.3;
+
 // --- Camera ---
 
 /** Camera offset from the player in isometric view (x, y, z). */
@@ -44,12 +47,14 @@ export const CAMERA_ZOOM = 40;
 
 // --- Creature Visuals ---
 
-/** Color palette per creature type. */
-export const CREATURE_COLORS: Record<CreatureTypeId, { body: string; ear: string }> = {
-  cat: { body: "#e8a0bf", ear: "#d68fae" },
-  fox: { body: "#e8b87a", ear: "#d6a568" },
-  bunny: { body: "#a0d8e8", ear: "#8fc4d6" },
-  frog: { body: "#a0e8a0", ear: "#8fd68f" },
+/** Color palette per creature type (used for UI accents, name tags, etc.). */
+export const CREATURE_COLORS: Record<CreatureTypeId, { body: string; accent: string }> = {
+  otter: { body: "#8B6F47", accent: "#6B5335" },
+  "red-panda": { body: "#C45A3C", accent: "#8B3A2A" },
+  sloth: { body: "#9B8B6B", accent: "#7A6D52" },
+  chipmunk: { body: "#C49A6C", accent: "#9B7A52" },
+  possum: { body: "#B8A088", accent: "#8F7D68" },
+  pangolin: { body: "#A89070", accent: "#8B7558" },
 };
 
 /** Creature geometry constants. */

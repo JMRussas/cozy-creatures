@@ -2,7 +2,7 @@
 
 Complete index of all source files with one-line summaries, line counts, and dependency edges.
 
-**36 source files, ~2,400 lines** (excluding tests and config files).
+**58+ source files, ~3,800+ lines** (excluding tests and config files).
 
 ## Shared Package (`@cozy/shared` — Packages/shared/src/)
 
@@ -15,14 +15,15 @@ Complete index of all source files with one-line summaries, line counts, and dep
 | [types/creature.ts](../Packages/shared/src/types/creature.ts) | 14 | `CreatureDefinition` interface — species metadata |
 | [types/room.ts](../Packages/shared/src/types/room.ts) | 30 | `RoomBase`, `RoomConfig`, `RoomInfo`, `RoomState` |
 | [types/chat.ts](../Packages/shared/src/types/chat.ts) | 17 | `ChatMessage` — single chat message structure |
-| [types/events.ts](../Packages/shared/src/types/events.ts) | 50 | `ClientToServerEvents`, `ServerToClientEvents`, `SocketData` |
+| [types/voice.ts](../Packages/shared/src/types/voice.ts) | 26 | `VoiceState`, `VoiceTokenRequest`, `VoiceTokenResponse` |
+| [types/events.ts](../Packages/shared/src/types/events.ts) | 56 | `ClientToServerEvents`, `ServerToClientEvents`, `SocketData` (incl. voice:state) |
 
 ### Constants
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [constants/config.ts](../Packages/shared/src/constants/config.ts) | 35 | Numeric limits: `MAX_PLAYER_NAME`, `MAX_CHAT_MESSAGE`, position bounds, rate limits |
-| [constants/creatures.ts](../Packages/shared/src/constants/creatures.ts) | 47 | `CREATURES` registry (cat, fox, bunny, frog), `CreatureTypeId`, `DEFAULT_CREATURE` |
+| [constants/config.ts](../Packages/shared/src/constants/config.ts) | 49 | Numeric limits: `MAX_PLAYER_NAME`, `MAX_CHAT_MESSAGE`, position bounds, rate limits, voice spatial/PTT constants |
+| [constants/creatures.ts](../Packages/shared/src/constants/creatures.ts) | 69 | `CREATURES` registry (otter, red-panda, sloth, chipmunk, possum, pangolin), `CreatureTypeId`, `DEFAULT_CREATURE`, `BASE_ANIMATIONS` |
 | [constants/rooms.ts](../Packages/shared/src/constants/rooms.ts) | 38 | `ROOMS` registry (3 rooms), `RoomId`, `DEFAULT_ROOM` |
 
 ### Dependency Graph
@@ -31,6 +32,7 @@ Complete index of all source files with one-line summaries, line counts, and dep
 creature.ts ← creatures.ts ← player.ts ← events.ts
                                   ↑           ↑
 room.ts ← rooms.ts ← config.ts   chat.ts ────┘
+                                  voice.ts ───┘
 ```
 
 ---
@@ -39,29 +41,41 @@ room.ts ← rooms.ts ← config.ts   chat.ts ────┘
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [index.ts](../Packages/server/src/index.ts) | 106 | Express + Socket.io setup, IP rate limiting, graceful shutdown |
-| [config.ts](../Packages/server/src/config.ts) | 57 | Env-var-driven config with validation (`PORT`, `CORS_ORIGIN`, rate limits) |
+| [index.ts](../Packages/server/src/index.ts) | 116 | Express + Socket.io setup, IP rate limiting, voice router mount, graceful shutdown |
+| [config.ts](../Packages/server/src/config.ts) | 95 | Env-var-driven config with validation (`PORT`, `CORS_ORIGIN`, rate limits, LiveKit keys) |
+| [api/voice.ts](../Packages/server/src/api/voice.ts) | 61 | `POST /api/voice/token` — validates request, creates LiveKit JWT, returns token + URL |
 | [rooms/Room.ts](../Packages/server/src/rooms/Room.ts) | 74 | Single room state: player Map, capacity, `getState()`, `getInfo()` |
 | [rooms/RoomManager.ts](../Packages/server/src/rooms/RoomManager.ts) | 45 | Manages all Room instances, initializes from `ROOMS` constant |
-| [socket/connectionHandler.ts](../Packages/server/src/socket/connectionHandler.ts) | 223 | `player:join`, `player:move`, `player:leave`, `room:list`, `disconnect` handlers |
+| [socket/connectionHandler.ts](../Packages/server/src/socket/connectionHandler.ts) | 222 | `player:join` (reuses DB player ID), `player:move`, `player:leave`, `room:list`, `disconnect` handlers + voice cleanup |
 | [socket/chatHandler.ts](../Packages/server/src/socket/chatHandler.ts) | 141 | `chat:message` handler, in-memory ring buffer history, rate limiting |
+| [socket/voiceHandler.ts](../Packages/server/src/socket/voiceHandler.ts) | 58 | `voice:state` broadcast to room, rate-limited, `cleanupVoice()` export |
 | [socket/profanityFilter.ts](../Packages/server/src/socket/profanityFilter.ts) | 35 | Word-list replacement filter — `filterProfanity()` |
 | [socket/validation.ts](../Packages/server/src/socket/validation.ts) | 81 | `stripControlChars`, `sanitizePosition`, `createRateLimiter`, `isFiniteNumber`, `clamp` |
+| [db/database.ts](../Packages/server/src/db/database.ts) | 53 | SQLite singleton via better-sqlite3, WAL mode, schema init (players table) |
+| [db/playerQueries.ts](../Packages/server/src/db/playerQueries.ts) | 50 | Player CRUD: `findPlayerByName`, `createPlayer`, `updatePlayerOnJoin` |
 
 ### Dependency Graph
 
 ```
 index.ts
   ├── config.ts ← @cozy/shared
+  ├── voiceRouter (api/voice.ts) ← config.ts, livekit-server-sdk
   ├── RoomManager.ts ← Room.ts ← @cozy/shared
+  ├── db/database.ts ← better-sqlite3, config.ts
+  │     └── db/playerQueries.ts ← @cozy/shared
   ├── connectionHandler.ts
   │     ├── validation.ts ← @cozy/shared
   │     ├── chatHandler.ts (sendChatHistory, cleanupChat)
+  │     ├── voiceHandler.ts (cleanupVoice)
+  │     ├── db/playerQueries.ts
   │     ├── RoomManager.ts
   │     └── config.ts
-  └── chatHandler.ts
-        ├── validation.ts (stripControlChars, createRateLimiter)
-        ├── profanityFilter.ts
+  ├── chatHandler.ts
+  │     ├── validation.ts (stripControlChars, createRateLimiter)
+  │     ├── profanityFilter.ts
+  │     └── config.ts
+  └── voiceHandler.ts
+        ├── validation.ts (createRateLimiter)
         └── config.ts
 ```
 
@@ -74,8 +88,8 @@ index.ts
 | File | Lines | Summary |
 |------|------:|---------|
 | [main.tsx](../apps/client/src/main.tsx) | 17 | React DOM mount point |
-| [App.tsx](../apps/client/src/App.tsx) | 135 | Join form + in-room view (scene, HUD, ChatPanel) |
-| [config.ts](../apps/client/src/config.ts) | 114 | All client visual/gameplay constants (movement, camera, creature geometry, lighting) |
+| [App.tsx](../apps/client/src/App.tsx) | 160 | Join form (CreaturePicker + CreaturePreview + localStorage persistence) + InRoomView |
+| [config.ts](../apps/client/src/config.ts) | 119 | All client visual/gameplay constants (movement, camera, creature geometry, lighting, `ANIMATION_CROSSFADE_DURATION`) |
 
 ### Networking
 
@@ -83,20 +97,23 @@ index.ts
 |------|------:|---------|
 | [networking/socket.ts](../apps/client/src/networking/socket.ts) | 43 | Typed Socket.io singleton with `connect`/`disconnect` lifecycle |
 | [networking/NetworkSync.tsx](../apps/client/src/networking/NetworkSync.tsx) | 42 | Subscribes to playerStore, emits throttled `player:move` (~10Hz) |
+| [networking/useVoice.ts](../apps/client/src/networking/useVoice.ts) | 196 | LiveKit Room lifecycle: connect/disconnect, mute/deafen sync, push-to-talk, speaker detection |
+| [networking/SpatialAudioManager.tsx](../apps/client/src/networking/SpatialAudioManager.tsx) | 140 | Web Audio PannerNode per remote participant, HRTF spatial positioning via useFrame |
 
 ### Stores (Zustand)
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [stores/playerStore.ts](../apps/client/src/stores/playerStore.ts) | 49 | Local player: position, target, isMoving, creatureType, name |
-| [stores/roomStore.ts](../apps/client/src/stores/roomStore.ts) | 180 | Room state + Socket.io listeners: join/leave flow, player sync |
+| [stores/playerStore.ts](../apps/client/src/stores/playerStore.ts) | 51 | Local player: position, target, isMoving, creatureType, name; `reset()` clears all fields |
+| [stores/roomStore.ts](../apps/client/src/stores/roomStore.ts) | 178 | Room state + Socket.io listeners: join/leave flow, player sync, voice reset |
 | [stores/chatStore.ts](../apps/client/src/stores/chatStore.ts) | 117 | Chat messages, bubble lifecycle (setTimeout-based), unread count |
+| [stores/voiceStore.ts](../apps/client/src/stores/voiceStore.ts) | 139 | Voice state: muted, deafened, speaking, spatial, remote speaking, device settings |
 
 ### 3D Scene
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [scene/IsometricScene.tsx](../apps/client/src/scene/IsometricScene.tsx) | 33 | R3F `<Canvas>` composing all 3D elements |
+| [scene/IsometricScene.tsx](../apps/client/src/scene/IsometricScene.tsx) | 36 | R3F `<Canvas>` composing all 3D elements + SpatialAudioManager |
 | [scene/CameraRig.tsx](../apps/client/src/scene/CameraRig.tsx) | 52 | Orthographic camera with smooth follow via `useFrame` |
 | [scene/Ground.tsx](../apps/client/src/scene/Ground.tsx) | 47 | Invisible click plane + drei `<Grid>` for visual |
 | [scene/Lighting.tsx](../apps/client/src/scene/Lighting.tsx) | 39 | Ambient + 2 directional lights (warm key, cool fill) |
@@ -105,17 +122,25 @@ index.ts
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [creatures/Creature.tsx](../apps/client/src/creatures/Creature.tsx) | 95 | Local player: click-to-move interpolation, idle bob, shadow |
-| [creatures/CreatureModel.tsx](../apps/client/src/creatures/CreatureModel.tsx) | 71 | Shared mesh: capsule body, cone ears, sphere eyes (forwardRef) |
+| [creatures/Creature.tsx](../apps/client/src/creatures/Creature.tsx) | 100 | Local player: click-to-move, imperative animation drive (idle/walk), Suspense fallback, CreatureShadow |
+| [creatures/CreatureModel.tsx](../apps/client/src/creatures/CreatureModel.tsx) | 89 | glTF model loader (useGLTF + SkeletonUtils.clone), imperative `setAnimation()` handle, crossfade |
+| [creatures/CreatureFallback.tsx](../apps/client/src/creatures/CreatureFallback.tsx) | 68 | Suspense fallback: procedural capsule+cones+eyes mesh (plain function component) |
+| [creatures/CreatureShadow.tsx](../apps/client/src/creatures/CreatureShadow.tsx) | 23 | Shared shadow circle mesh extracted from Creature + RemoteCreature |
 | [creatures/RemotePlayers.tsx](../apps/client/src/creatures/RemotePlayers.tsx) | 29 | Maps `players` record to `<RemoteCreature>` instances |
-| [creatures/RemoteCreature.tsx](../apps/client/src/creatures/RemoteCreature.tsx) | 97 | Remote player: network position lerp, rotation, idle bob |
+| [creatures/RemoteCreature.tsx](../apps/client/src/creatures/RemoteCreature.tsx) | 122 | Remote player: position lerp, hysteresis-based animation state, CreatureShadow |
 | [creatures/ChatBubble.tsx](../apps/client/src/creatures/ChatBubble.tsx) | 35 | drei `<Html>` overlay above creature — shows latest message |
+| [creatures/SpeakingIndicator.tsx](../apps/client/src/creatures/SpeakingIndicator.tsx) | 70 | R3F torus above creature head, pulsing green opacity when speaking |
+| [creatures/AudioRangeRing.tsx](../apps/client/src/creatures/AudioRangeRing.tsx) | 32 | Ring geometry at spatial max distance, shown when spatial audio enabled |
 
 ### UI
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [ui/ChatPanel.tsx](../apps/client/src/ui/ChatPanel.tsx) | 141 | Collapsible chat panel: message list, input, unread badge, Escape to close |
+| [ui/ChatPanel.tsx](../apps/client/src/ui/ChatPanel.tsx) | 152 | Collapsible chat panel: message list, input, unread badge, speaking dots, Escape to close |
+| [ui/CreaturePicker.tsx](../apps/client/src/ui/CreaturePicker.tsx) | 49 | 3x2 grid of creature cards with accent border on selection (type-safe keys) |
+| [ui/CreaturePreview.tsx](../apps/client/src/ui/CreaturePreview.tsx) | 55 | Small R3F Canvas with auto-rotating creature model preview + targeted preload |
+| [ui/VoiceControls.tsx](../apps/client/src/ui/VoiceControls.tsx) | 87 | HUD bar: mic toggle, deafen toggle, settings gear, connection status dot |
+| [ui/VoiceSettings.tsx](../apps/client/src/ui/VoiceSettings.tsx) | 211 | Settings panel: mic selector, level meter, volume sliders, PTT/spatial toggles |
 
 ### Utilities
 
@@ -127,32 +152,42 @@ index.ts
 
 ```
 main.tsx → App.tsx
-              ├── roomStore ← socket, playerStore, chatStore
-              ├── IsometricScene
-              │     ├── CameraRig ← playerStore, config
-              │     ├── Ground ← playerStore, config
-              │     ├── Lighting ← config
-              │     ├── Creature ← playerStore, roomStore, CreatureModel, ChatBubble, config, math
-              │     ├── RemotePlayers ← roomStore
-              │     │     └── RemoteCreature ← roomStore, CreatureModel, ChatBubble, config, math
-              │     └── NetworkSync ← playerStore, socket
-              └── ChatPanel ← chatStore, roomStore
+              ├── roomStore ← socket, playerStore, chatStore, voiceStore
+              ├── InRoomView
+              │     ├── useVoice ← voiceStore, roomStore, playerStore, livekit-client
+              │     ├── IsometricScene
+              │     │     ├── CameraRig ← playerStore, config
+              │     │     ├── Ground ← playerStore, config
+              │     │     ├── Lighting ← config
+              │     │     ├── Creature ← playerStore, roomStore, CreatureModel, ChatBubble, SpeakingIndicator, AudioRangeRing
+              │     │     ├── RemotePlayers ← roomStore
+              │     │     │     └── RemoteCreature ← roomStore, CreatureModel, ChatBubble, SpeakingIndicator
+              │     │     ├── NetworkSync ← playerStore, socket
+              │     │     └── SpatialAudioManager ← voiceStore, playerStore, roomStore, useVoice (getLivekitRoom)
+              │     ├── ChatPanel ← chatStore, roomStore, voiceStore
+              │     └── VoiceControls ← voiceStore
+              │           └── VoiceSettings ← voiceStore
 ```
 
 ---
 
-## Test Files (11 files, ~19 new + 78 pre-existing = 100 unique tests)
+## Test Files (17 files, ~145 unique tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
-| `Packages/shared/src/constants/config.test.ts` | 4 | Constants are positive, reasonable values |
-| `Packages/shared/src/constants/creatures.test.ts` | 3 | DEFAULT_CREATURE exists, all creatures have required fields |
+| `Packages/shared/src/constants/config.test.ts` | 12 | Constants validation incl. voice spatial, PTT, throttle |
+| `Packages/shared/src/constants/creatures.test.ts` | 4 | DEFAULT_CREATURE exists, all creatures have required fields + description |
 | `Packages/shared/src/constants/rooms.test.ts` | 2 | DEFAULT_ROOM exists, all rooms have required fields |
 | `Packages/server/src/socket/validation.test.ts` | 24 | isFiniteNumber, clamp, stripControlChars, sanitizePosition, createRateLimiter |
 | `Packages/server/src/rooms/Room.test.ts` | 19 | add/remove/get player, capacity, getState, getInfo |
 | `Packages/server/src/rooms/RoomManager.test.ts` | 12 | Init, getRoom, listRooms, joinRoom, leaveRoom |
 | `Packages/server/src/socket/chatHandler.test.ts` | 13 | sanitizeChatContent (8 cases), chat history ring buffer (5 cases) |
 | `Packages/server/src/socket/profanityFilter.test.ts` | 9 | Replacement, case insensitivity, partial words, punctuation |
+| `Packages/server/src/api/voice.test.ts` | 6 | Token endpoint validation (empty body, missing fields, non-string), success, JWT format |
+| `Packages/server/src/socket/voiceHandler.test.ts` | 2 | cleanupVoice safety with unknown/repeated socket ids |
 | `apps/client/src/utils/math.test.ts` | 5 | lerpAngle boundary behavior |
 | `apps/client/src/stores/playerStore.test.ts` | 7 | Store actions: setTarget, setPosition, reset |
+| `apps/client/src/stores/voiceStore.test.ts` | 17 | Toggle mute/deafen, linked states, volume clamping, reset, modes |
 | `apps/client/src/config.test.ts` | 2 | CREATURE_COLORS completeness and hex format |
+| `Packages/server/src/db/database.test.ts` | 5 | Schema init, singleton, close/reopen, table/index verification |
+| `Packages/server/src/db/playerQueries.test.ts` | 6 | CRUD operations, name lookup |

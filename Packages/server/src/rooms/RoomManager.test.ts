@@ -12,7 +12,7 @@ function makePlayer(id: string): Player {
   return {
     id,
     name: "Test",
-    creatureType: "cat",
+    creatureType: "otter",
     position: { x: 0, y: 0, z: 0 },
     roomId: DEFAULT_ROOM,
   };

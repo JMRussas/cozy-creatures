@@ -1,47 +1,68 @@
 // Cozy Creatures - Creature Constants
 //
 // Registry of available creature types and their metadata.
+// Models sourced from Cute Zoo 4 (SURIYUN) asset pack.
 //
 // Depends on: types/creature.ts
 // Used by:    client creature registry, server validation
 
 import type { CreatureDefinition } from "../types/creature.js";
 
-/** Animations shared by all creatures. Individual overrides can be added per-creature. */
-export const BASE_ANIMATIONS = ["idle", "walk", "sit", "wave"] as const;
+/** Animations shared by all creatures (matching Cute Zoo 4 clips). */
+export const BASE_ANIMATIONS = ["idle", "walk", "run", "eat", "rest"] as const;
 
 export const CREATURES = {
-  cat: {
-    id: "cat",
-    name: "Cat",
-    modelPath: "/assets/creatures/cat/model.glb",
-    thumbnailPath: "/assets/creatures/cat/thumb.png",
+  otter: {
+    id: "otter",
+    name: "Otter",
+    description: "Playful and curious. Loves to splash around.",
+    modelPath: "/assets/creatures/otter/model.glb",
+    thumbnailPath: "/assets/creatures/otter/thumb.png",
     animations: BASE_ANIMATIONS,
   },
-  fox: {
-    id: "fox",
-    name: "Fox",
-    modelPath: "/assets/creatures/fox/model.glb",
-    thumbnailPath: "/assets/creatures/fox/thumb.png",
+  "red-panda": {
+    id: "red-panda",
+    name: "Red Panda",
+    description: "Fluffy and bashful. Expert napper.",
+    modelPath: "/assets/creatures/red-panda/model.glb",
+    thumbnailPath: "/assets/creatures/red-panda/thumb.png",
     animations: BASE_ANIMATIONS,
   },
-  bunny: {
-    id: "bunny",
-    name: "Bunny",
-    modelPath: "/assets/creatures/bunny/model.glb",
-    thumbnailPath: "/assets/creatures/bunny/thumb.png",
+  sloth: {
+    id: "sloth",
+    name: "Sloth",
+    description: "Takes it slow. Maximum cozy energy.",
+    modelPath: "/assets/creatures/sloth/model.glb",
+    thumbnailPath: "/assets/creatures/sloth/thumb.png",
     animations: BASE_ANIMATIONS,
   },
-  frog: {
-    id: "frog",
-    name: "Frog",
-    modelPath: "/assets/creatures/frog/model.glb",
-    thumbnailPath: "/assets/creatures/frog/thumb.png",
+  chipmunk: {
+    id: "chipmunk",
+    name: "Chipmunk",
+    description: "Tiny and zippy. Always excited to see friends.",
+    modelPath: "/assets/creatures/chipmunk/model.glb",
+    thumbnailPath: "/assets/creatures/chipmunk/thumb.png",
+    animations: BASE_ANIMATIONS,
+  },
+  possum: {
+    id: "possum",
+    name: "Possum",
+    description: "Sneaky and sweet. Loves moonlit strolls.",
+    modelPath: "/assets/creatures/possum/model.glb",
+    thumbnailPath: "/assets/creatures/possum/thumb.png",
+    animations: BASE_ANIMATIONS,
+  },
+  pangolin: {
+    id: "pangolin",
+    name: "Pangolin",
+    description: "Armored but gentle. A true original.",
+    modelPath: "/assets/creatures/pangolin/model.glb",
+    thumbnailPath: "/assets/creatures/pangolin/thumb.png",
     animations: BASE_ANIMATIONS,
   },
 } satisfies Record<string, CreatureDefinition>;
 
-/** Union of valid creature type IDs (e.g. "cat" | "fox" | "bunny" | "frog"). */
+/** Union of valid creature type IDs. */
 export type CreatureTypeId = keyof typeof CREATURES;
 
-export const DEFAULT_CREATURE: CreatureTypeId = "cat";
+export const DEFAULT_CREATURE: CreatureTypeId = "otter";

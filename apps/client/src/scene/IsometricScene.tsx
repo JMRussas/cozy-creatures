@@ -3,7 +3,8 @@
 // Top-level R3F Canvas wrapper that composes the 3D scene:
 // camera, lighting, ground, local creature, and remote players.
 //
-// Depends on: CameraRig, Ground, Lighting, Creature, RemotePlayers, NetworkSync
+// Depends on: CameraRig, Ground, Lighting, Creature, RemotePlayers, NetworkSync,
+//             SpatialAudioManager
 // Used by:    App.tsx
 
 import { Canvas } from "@react-three/fiber";
@@ -13,6 +14,7 @@ import Lighting from "./Lighting";
 import Creature from "../creatures/Creature";
 import RemotePlayers from "../creatures/RemotePlayers";
 import NetworkSync from "../networking/NetworkSync";
+import SpatialAudioManager from "../networking/SpatialAudioManager";
 
 export default function IsometricScene() {
   return (
@@ -28,6 +30,7 @@ export default function IsometricScene() {
       <Creature />
       <RemotePlayers />
       <NetworkSync />
+      <SpatialAudioManager />
     </Canvas>
   );
 }

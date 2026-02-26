@@ -1,42 +1,44 @@
 // Cozy Creatures - Local Player Creature
 //
-// Moves toward click target with smooth lerp. Has a gentle idle bob.
-// Uses shared CreatureModel for the visual mesh.
+// Moves toward click target with smooth lerp. Drives animation state
+// (idle/walk) via CreatureModel's imperative handle. Wrapped in Suspense
+// with a CreatureFallback while glTF loads.
 //
 // Depends on: @react-three/fiber, three, stores/playerStore, stores/roomStore,
-//             CreatureModel, ChatBubble, config, utils/math
+//             CreatureModel, CreatureFallback, CreatureShadow, ChatBubble,
+//             SpeakingIndicator, AudioRangeRing, config, utils/math
 // Used by:    scene/IsometricScene
 
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { usePlayerStore } from "../stores/playerStore";
 import { useRoomStore } from "../stores/roomStore";
 import CreatureModel from "./CreatureModel";
+import type { CreatureModelHandle } from "./CreatureModel";
+import CreatureFallback from "./CreatureFallback";
+import CreatureShadow from "./CreatureShadow";
 import ChatBubble from "./ChatBubble";
+import SpeakingIndicator from "./SpeakingIndicator";
+import AudioRangeRing from "./AudioRangeRing";
 import { lerpAngle } from "../utils/math";
 import {
   MOVE_SPEED,
   ARRIVAL_THRESHOLD,
-  BOB_SPEED,
-  BOB_HEIGHT,
   LOCAL_ROTATION_SPEED,
-  CREATURE_COLORS,
-  CREATURE_GEOMETRY,
 } from "../config";
 
 export default function Creature() {
   const groupRef = useRef<THREE.Group>(null);
-  const visualRef = useRef<THREE.Group>(null);
+  const modelRef = useRef<CreatureModelHandle>(null);
   const creatureType = usePlayerStore((s) => s.creatureType);
   const localPlayerId = useRoomStore((s) => s.localPlayerId);
-  const colors = CREATURE_COLORS[creatureType];
 
   // Pre-allocated vectors reused every frame (avoid GC pressure)
   const targetVec = useRef(new THREE.Vector3());
   const direction = useRef(new THREE.Vector3());
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     const group = groupRef.current;
     if (!group) return;
 
@@ -65,8 +67,10 @@ export default function Creature() {
         1 - Math.exp(-LOCAL_ROTATION_SPEED * delta),
       );
 
-      // TODO(Stage 4): move to ref-based position to avoid per-frame setState
       store.setPosition({ x: currentPos.x, y: currentPos.y, z: currentPos.z });
+
+      // Drive walk animation
+      modelRef.current?.setAnimation("walk");
     } else if (store.isMoving) {
       // Arrived — batch into a single setState to avoid an extra render
       usePlayerStore.setState({
@@ -74,25 +78,23 @@ export default function Creature() {
         position: { x: store.target.x, y: 0, z: store.target.z },
       });
       currentPos.set(store.target.x, 0, store.target.z);
-    }
 
-    // Idle bob — applied to visual group so body + ears + eyes move together
-    if (visualRef.current) {
-      visualRef.current.position.y = Math.sin(clock.elapsedTime * BOB_SPEED) * BOB_HEIGHT;
+      modelRef.current?.setAnimation("idle");
     }
   });
 
   return (
     <group ref={groupRef}>
-      <CreatureModel ref={visualRef} bodyColor={colors.body} earColor={colors.ear} />
+      <Suspense fallback={<CreatureFallback creatureType={creatureType} />}>
+        <CreatureModel ref={modelRef} creatureType={creatureType} />
+      </Suspense>
 
-      {/* Shadow blob on ground — stays flat, doesn't bob */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.01, 0]}>
-        <circleGeometry args={[CREATURE_GEOMETRY.shadowRadius, CREATURE_GEOMETRY.shadowSegments]} />
-        <meshBasicMaterial color="#000000" transparent opacity={CREATURE_GEOMETRY.shadowOpacity} />
-      </mesh>
+      <CreatureShadow />
+
+      <AudioRangeRing />
 
       {localPlayerId && <ChatBubble playerId={localPlayerId} />}
+      {localPlayerId && <SpeakingIndicator playerId={localPlayerId} isLocal />}
     </group>
   );
 }

@@ -8,6 +8,7 @@
 export interface CreatureDefinition {
   id: string;
   name: string;
+  description: string;
   modelPath: string;
   thumbnailPath: string;
   animations: readonly string[];

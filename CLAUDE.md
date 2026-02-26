@@ -6,6 +6,7 @@ Web-based social app where users are cute low-poly creature avatars hanging out 
 
 ```bash
 pnpm install          # Install all dependencies
+docker compose up -d  # Start LiveKit server (port 7880)
 pnpm dev              # Start client (5173) + server (3001) in parallel
 pnpm dev:client       # Client only
 pnpm dev:server       # Server only
@@ -26,10 +27,10 @@ cozy-creatures/
 │       │   ├── main.tsx          # Entry point
 │       │   ├── App.tsx           # Root component
 │       │   ├── scene/            # Three.js scene, camera, lighting
-│       │   ├── creatures/        # Creature rendering, chat bubbles
-│       │   ├── ui/               # React UI (ChatPanel)
-│       │   ├── networking/       # Socket.io client
-│       │   ├── stores/           # Zustand stores (player, room, chat)
+│       │   ├── creatures/        # glTF creature models, animations, chat bubbles, speaking indicators
+│       │   ├── ui/               # React UI (ChatPanel, VoiceControls, CreaturePicker, CreaturePreview)
+│       │   ├── networking/       # Socket.io client, LiveKit voice, spatial audio
+│       │   ├── stores/           # Zustand stores (player, room, chat, voice)
 │       │   ├── utils/            # Shared math helpers
 │       │   ├── input/            # Click-to-move, keyboard
 │       │   └── assets/           # Static assets
@@ -40,21 +41,23 @@ cozy-creatures/
 │   │   └── src/
 │   │       ├── index.ts          # Server entry point
 │   │       ├── config.ts         # Server config (env vars)
-│   │       ├── socket/           # Socket.io handlers (connection, chat)
+│   │       ├── socket/           # Socket.io handlers (connection, chat, voice)
 │   │       ├── rooms/            # Room management
 │   │       ├── auth/             # Auth (simple → OAuth)
-│   │       ├── db/               # Database layer
-│   │       └── api/              # REST endpoints
+│   │       ├── db/               # SQLite (better-sqlite3) — player persistence
+│   │       └── api/              # REST endpoints (voice token)
 │   │
 │   └── shared/                   # Shared TypeScript types (@cozy/shared)
 │       └── src/
-│           ├── types/            # Player, Creature, Room, Chat, Events
-│           └── constants/        # Creature defs, room configs
+│           ├── types/            # Player, Creature, Room, Chat, Voice, Events
+│           └── constants/        # Creature defs, room configs, voice config
 │
-└── assets/                       # Source 3D models (glTF)
-    ├── creatures/                # cat, fox, bunny, frog
-    ├── environments/             # cozy-cafe, rooftop-garden
-    └── props/
+├── tools/
+│   └── convert_creatures.py      # Blender FBX→glTF batch converter
+│
+└── apps/client/public/assets/    # Static creature models (served by Vite)
+    └── creatures/                # otter, red-panda, sloth, chipmunk, possum, pangolin
+        └── */model.glb           # glTF with embedded textures + animations
 ```
 
 ## Deep-Dive Docs
@@ -65,7 +68,9 @@ cozy-creatures/
 | [.claude/architecture.md](.claude/architecture.md) | System architecture, state machines, data flow |
 | [.claude/asset_pipeline.md](.claude/asset_pipeline.md) | Asset catalog, import workflow |
 | [.claude/code_review.md](.claude/code_review.md) | Post-Stage 2 code review findings (18 items, all resolved) |
-| [.claude/code_review_stage3.md](.claude/code_review_stage3.md) | Post-Stage 3 code review (28 findings: 15 fixed, 8 medium open) |
+| [.claude/code_review_stage3.md](.claude/code_review_stage3.md) | Post-Stage 3 code review (43 findings, all resolved) |
+| [.claude/code_review_voice.md](.claude/code_review_voice.md) | Voice chat code review (28 findings, all resolved) |
+| [.claude/code_review_stage4.md](.claude/code_review_stage4.md) | Creature system code review (14 findings, all resolved) |
 | [.claude/file_index.md](.claude/file_index.md) | Complete file index: summaries, line counts, dependency graphs |
 
 ## Tech Stack
@@ -79,7 +84,8 @@ cozy-creatures/
 | Real-time | Socket.io |
 | Voice Chat | LiveKit (self-hosted SFU) |
 | Backend | Express (TypeScript) |
-| Database | SQLite (→ Postgres later) |
+| Database | SQLite via better-sqlite3 (→ Postgres later) |
+| 3D Assets | Cute Zoo 4 (SURIYUN) glTF via drei useGLTF |
 | Language | TypeScript throughout |
 | Monorepo | pnpm workspaces |
 
@@ -97,3 +103,7 @@ cozy-creatures/
 
 - **Packages/ casing:** The `Packages/` directory is capital-P (inherited from Unity). The pnpm-workspace.yaml uses `Packages/*` to match.
 - **esbuild:** Must be in `onlyBuiltDependencies` in pnpm-workspace.yaml or Vite won't work.
+- **LiveKit Docker:** Must run `docker compose up -d` before `pnpm dev` for voice chat. Dev key pair: `devkey:secret`.
+- **LiveKit env vars:** `LIVEKIT_WS_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` — defaults to local Docker dev values.
+- **better-sqlite3:** Must be in `onlyBuiltDependencies` in pnpm-workspace.yaml (native C++ addon). Requires node-gyp build toolchain on Windows.
+- **SkeletonUtils.clone():** Use `SkeletonUtils.clone(scene)` not `scene.clone()` for glTF models with animations — `scene.clone()` breaks skeleton bindings.

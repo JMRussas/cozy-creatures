@@ -65,5 +65,10 @@ apps/client/dist/
 .env.local
 .env.*.local
 
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
 # Claude Code (local settings)
 .claude/settings.local.json

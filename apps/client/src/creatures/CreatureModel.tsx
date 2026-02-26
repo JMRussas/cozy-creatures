@@ -1,72 +1,86 @@
-// Cozy Creatures - Creature Model (shared mesh)
+// Cozy Creatures - Creature Model (glTF)
 //
-// The visual mesh hierarchy for a creature: body capsule, ears, eyes.
-// Used by both Creature (local) and RemoteCreature. Materials are cached
-// via useMemo to avoid creating new instances on every render.
+// Loads a creature's glTF model via drei useGLTF and plays animations via
+// useAnimations. Each instance gets a deep clone (SkeletonUtils.clone) so
+// multiple creatures can animate independently. Exposes an imperative
+// setAnimation() handle so parents can switch clips without React re-renders.
 //
-// Depends on: react, three, config
+// Depends on: react, three, @react-three/drei, @react-three/fiber,
+//             three/examples/jsm/utils/SkeletonUtils, @cozy/shared, config
 // Used by:    creatures/Creature.tsx, creatures/RemoteCreature.tsx
 
-import { forwardRef, useEffect, useMemo } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useGLTF, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
-import { CREATURE_GEOMETRY as CG } from "../config";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
+import { CREATURES } from "@cozy/shared";
+import type { CreatureTypeId } from "@cozy/shared";
+import { ANIMATION_CROSSFADE_DURATION } from "../config";
 
-interface CreatureModelProps {
-  /** Primary body color. */
-  bodyColor: string;
-  /** Ear accent color (slightly darker than body). */
-  earColor: string;
+export interface CreatureModelHandle {
+  /** Switch to the named animation clip with crossfade. */
+  setAnimation: (name: string) => void;
 }
 
-/** Shared eye material — eye color never changes between creatures. */
-const eyeMaterial = new THREE.MeshStandardMaterial({ color: CG.eyeColor });
+interface CreatureModelProps {
+  creatureType: CreatureTypeId;
+}
 
-const CreatureModel = forwardRef<THREE.Group, CreatureModelProps>(
-  function CreatureModel({ bodyColor, earColor }, ref) {
-    const bodyMat = useMemo(
-      () => new THREE.MeshStandardMaterial({ color: bodyColor, roughness: CG.roughness }),
-      [bodyColor],
-    );
-    const earMat = useMemo(
-      () => new THREE.MeshStandardMaterial({ color: earColor, roughness: CG.roughness }),
-      [earColor],
-    );
+const CreatureModel = forwardRef<CreatureModelHandle, CreatureModelProps>(
+  function CreatureModel({ creatureType }, ref) {
+    const definition = CREATURES[creatureType];
+    const { scene, animations } = useGLTF(definition.modelPath);
 
-    // Dispose GPU materials when they are replaced or the component unmounts
-    useEffect(() => () => { bodyMat.dispose(); }, [bodyMat]);
-    useEffect(() => () => { earMat.dispose(); }, [earMat]);
+    // Deep-clone scene per instance so skeletons are independent
+    const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
+
+    // Enable castShadow on all child meshes
+    useEffect(() => {
+      clone.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          child.castShadow = true;
+        }
+      });
+    }, [clone]);
+
+    const groupRef = useRef<THREE.Group>(null);
+    const { actions, mixer } = useAnimations(animations, groupRef);
+    const currentAction = useRef<THREE.AnimationAction | null>(null);
+
+    // Start with idle animation
+    useEffect(() => {
+      const idle = actions["idle"];
+      if (idle) {
+        idle.reset().play();
+        currentAction.current = idle;
+      }
+    }, [actions]);
+
+    // Expose imperative handle for animation switching
+    useImperativeHandle(ref, () => ({
+      setAnimation(name: string) {
+        const next = actions[name];
+        if (!next) return;
+        if (next === currentAction.current) return;
+
+        const prev = currentAction.current;
+        if (prev) {
+          prev.fadeOut(ANIMATION_CROSSFADE_DURATION);
+        }
+        next.reset().fadeIn(ANIMATION_CROSSFADE_DURATION).play();
+        currentAction.current = next;
+      },
+    }), [actions]);
+
+    // Advance the mixer each frame
+    useFrame((_, delta) => {
+      mixer.update(delta);
+    });
 
     return (
-      <group ref={ref}>
-        {/* Body — rounded capsule-ish shape */}
-        <mesh position={[0, CG.bodyY, 0]} castShadow>
-          <capsuleGeometry args={[CG.bodyRadius, CG.bodyLength, CG.bodyRadialSegments, CG.bodyHeightSegments]} />
-          <primitive object={bodyMat} attach="material" />
-        </mesh>
-
-        {/* Left ear */}
-        <mesh position={[-CG.earSpacing, CG.earY, 0]} castShadow>
-          <coneGeometry args={[CG.earRadius, CG.earHeight, CG.earSegments]} />
-          <primitive object={earMat} attach="material" />
-        </mesh>
-
-        {/* Right ear */}
-        <mesh position={[CG.earSpacing, CG.earY, 0]} castShadow>
-          <coneGeometry args={[CG.earRadius, CG.earHeight, CG.earSegments]} />
-          <primitive object={earMat} attach="material" />
-        </mesh>
-
-        {/* Left eye */}
-        <mesh position={[-CG.eyeSpacing, CG.eyeY, CG.eyeZ]}>
-          <sphereGeometry args={[CG.eyeRadius, CG.eyeSegments, CG.eyeSegments]} />
-          <primitive object={eyeMaterial} attach="material" />
-        </mesh>
-
-        {/* Right eye */}
-        <mesh position={[CG.eyeSpacing, CG.eyeY, CG.eyeZ]}>
-          <sphereGeometry args={[CG.eyeRadius, CG.eyeSegments, CG.eyeSegments]} />
-          <primitive object={eyeMaterial} attach="material" />
-        </mesh>
+      <group ref={groupRef}>
+        <primitive object={clone} />
       </group>
     );
   },

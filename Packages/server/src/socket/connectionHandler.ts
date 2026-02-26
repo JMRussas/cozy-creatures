@@ -5,7 +5,7 @@
 //
 // Depends on: @cozy/shared (event types, Player, CREATURES, DEFAULT_ROOM, MAX_PLAYER_NAME),
 //             socket/types.ts, socket/validation.ts, socket/chatHandler.ts,
-//             rooms/RoomManager.ts, config.ts
+//             socket/voiceHandler.ts, rooms/RoomManager.ts, config.ts, db/playerQueries.ts
 // Used by:    index.ts
 
 import { randomUUID } from "crypto";
@@ -23,6 +23,8 @@ import { config } from "../config.js";
 import type { TypedServer, TypedSocket } from "./types.js";
 import { sanitizePosition, stripControlChars, createRateLimiter } from "./validation.js";
 import { sendChatHistory, cleanupChat, clearHistory } from "./chatHandler.js";
+import { cleanupVoice } from "./voiceHandler.js";
+import { findPlayerByName, createPlayer, updatePlayerOnJoin } from "../db/playerQueries.js";
 
 // --- Rate limiting ---
 
@@ -73,7 +75,15 @@ export function registerConnectionHandler(
         const safeRoomId: RoomId =
           roomId in ROOMS ? (roomId as RoomId) : DEFAULT_ROOM;
 
-        const playerId = randomUUID();
+        // Persist to SQLite — lookup by name, create or update.
+        // Reuse the existing DB id so the in-memory player matches the DB row.
+        const existing = findPlayerByName(safeName);
+        const playerId = existing?.id ?? randomUUID();
+        if (existing) {
+          updatePlayerOnJoin(playerId, safeCreature);
+        } else {
+          createPlayer(playerId, safeName, safeCreature);
+        }
 
         const player: Player = {
           id: playerId,
@@ -155,6 +165,7 @@ export function registerConnectionHandler(
         handleLeave(socket, roomManager);
         moveLimiter.clear(socket.id);
         cleanupChat(socket.id);
+        cleanupVoice(socket.id);
       } catch (err) {
         console.error("[socket] player:leave error:", err);
       }
@@ -177,6 +188,7 @@ export function registerConnectionHandler(
         handleLeave(socket, roomManager);
         moveLimiter.clear(socket.id);
         cleanupChat(socket.id);
+        cleanupVoice(socket.id);
       } catch (err) {
         console.error("[socket] disconnect cleanup error:", err);
       }

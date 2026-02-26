@@ -4,9 +4,13 @@
 // Validates parsed integers on startup — NaN from bad env vars will throw immediately.
 //
 // Depends on: @cozy/shared (POSITION_UPDATE_THROTTLE_MS, CHAT_RATE_LIMIT_MS)
-// Used by:    index.ts, socket/connectionHandler.ts, socket/chatHandler.ts
+// Used by:    index.ts, socket/connectionHandler.ts, socket/chatHandler.ts, db/database.ts
 
-import { POSITION_UPDATE_THROTTLE_MS, CHAT_RATE_LIMIT_MS } from "@cozy/shared";
+import {
+  POSITION_UPDATE_THROTTLE_MS,
+  CHAT_RATE_LIMIT_MS,
+  VOICE_STATE_THROTTLE_MS,
+} from "@cozy/shared";
 
 /** Parse an env var as an integer, throwing on non-integer or out-of-bounds values. */
 function parseIntEnv(
@@ -66,9 +70,49 @@ export const config = {
     0,
   ),
 
+  /** Minimum interval (ms) between voice:state events per socket. */
+  voiceStateRateMs: parseIntEnv(
+    process.env.VOICE_STATE_RATE_MS,
+    VOICE_STATE_THROTTLE_MS,
+    "VOICE_STATE_RATE_MS",
+    0,
+  ),
+
+  /** LiveKit server WebSocket URL (returned to clients in token response). */
+  livekitWsUrl: process.env.LIVEKIT_WS_URL ?? "ws://localhost:7880",
+
+  /** LiveKit API key (must match docker-compose LIVEKIT_KEYS). */
+  livekitApiKey: process.env.LIVEKIT_API_KEY ?? "devkey",
+
+  /** LiveKit API secret (must match docker-compose LIVEKIT_KEYS). */
+  livekitApiSecret: process.env.LIVEKIT_API_SECRET ?? "secret",
+
   /** Interval (ms) between rate-limiter / IP-count sweep passes. */
-  sweepIntervalMs: 60_000,
+  sweepIntervalMs: parseIntEnv(
+    process.env.SWEEP_INTERVAL_MS,
+    60_000,
+    "SWEEP_INTERVAL_MS",
+    1000,
+  ),
 
   /** Max age (ms) of a rate-limiter entry before it's eligible for sweep. */
-  sweepMaxAgeMs: 30_000,
+  sweepMaxAgeMs: parseIntEnv(
+    process.env.SWEEP_MAX_AGE_MS,
+    30_000,
+    "SWEEP_MAX_AGE_MS",
+    1000,
+  ),
+
+  /** Path to the SQLite database file. */
+  dbPath: process.env.DB_PATH ?? "cozy-creatures.db",
 };
+
+// In production, LiveKit credentials must be set explicitly.
+// Defaulting to devkey/secret would silently expose an unauthenticated SFU.
+if (process.env.NODE_ENV === "production") {
+  if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) {
+    throw new Error(
+      "LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set in production",
+    );
+  }
+}

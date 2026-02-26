@@ -4,15 +4,16 @@
 // Wires Socket.io listeners to keep state in sync with the server.
 //
 // Depends on: @cozy/shared (Player, CreatureTypeId, RoomId), networking/socket.ts, stores/playerStore,
-//             stores/chatStore
+//             stores/chatStore, stores/voiceStore
 // Used by:    App.tsx, creatures/Creature, creatures/RemotePlayers, creatures/RemoteCreature,
-//             ui/ChatPanel
+//             ui/ChatPanel, networking/useVoice
 
 import { create } from "zustand";
 import type { Player, CreatureTypeId, RoomId } from "@cozy/shared";
 import { getSocket, connectSocket, disconnectSocket } from "../networking/socket";
 import { usePlayerStore } from "./playerStore";
 import { useChatStore } from "./chatStore";
+import { useVoiceStore } from "./voiceStore";
 
 const socket = getSocket();
 
@@ -106,6 +107,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     // Reset local player position so re-joining starts fresh
     usePlayerStore.getState().reset();
     useChatStore.getState().clearChat();
+    useVoiceStore.getState().resetVoice();
   },
 
 }));
@@ -152,7 +154,7 @@ socket.off("player:joined").on("player:joined", (player) => {
   }));
 });
 
-// TODO(Stage 4): player:moved fires ~10Hz per remote player, creating a new
+// PERF: player:moved fires ~10Hz per remote player, creating a new
 // players object each time. For large rooms, switch to ref-based positions
 // (e.g. Map<string, THREE.Vector3>) read directly in useFrame, bypassing React.
 socket.off("player:moved").on("player:moved", ({ id, position }) => {
@@ -172,5 +174,11 @@ socket.off("player:left").on("player:left", ({ id }) => {
   useRoomStore.setState((prev) => {
     const { [id]: _, ...rest } = prev.players;
     return { players: rest };
+  });
+  // Clean up remote speaking state for departed player
+  useVoiceStore.setState((prev) => {
+    if (!(id in prev.remoteSpeaking)) return prev;
+    const { [id]: _, ...rest } = prev.remoteSpeaking;
+    return { remoteSpeaking: rest };
   });
 });

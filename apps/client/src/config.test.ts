@@ -14,11 +14,11 @@ describe("CREATURE_COLORS", () => {
     }
   });
 
-  it("body and ear colors are valid hex strings", () => {
+  it("body and accent colors are valid hex strings", () => {
     const hexPattern = /^#[0-9a-fA-F]{6}$/;
     for (const [id, colors] of Object.entries(CREATURE_COLORS)) {
       expect(colors.body, `${id} body`).toMatch(hexPattern);
-      expect(colors.ear, `${id} ear`).toMatch(hexPattern);
+      expect(colors.accent, `${id} accent`).toMatch(hexPattern);
     }
   });
 });
