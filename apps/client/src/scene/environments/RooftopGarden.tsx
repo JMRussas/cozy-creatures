@@ -117,7 +117,7 @@ export default function RooftopGarden() {
   return (
     <>
       <RoomLighting theme="rooftop-garden" />
-      <ClickPlane bounds={ENV.bounds} />
+      <ClickPlane bounds={ENV.bounds} obstacles={ENV.obstacles} />
 
       {/* Sunset sky */}
       <Sky

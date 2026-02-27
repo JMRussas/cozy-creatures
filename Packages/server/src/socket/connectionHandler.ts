@@ -5,7 +5,8 @@
 // inputs are validated/sanitized.
 //
 // Depends on: @cozy/shared (event types, Player, CREATURES, SKINS, ROOMS,
-//             DEFAULT_ROOM, MAX_PLAYER_NAME, ROOM_SWITCH_COOLDOWN_MS),
+//             DEFAULT_ROOM, MAX_PLAYER_NAME, ROOM_SWITCH_COOLDOWN_MS,
+//             clampAndResolve),
 //             socket/types.ts, socket/validation.ts, socket/chatHandler.ts,
 //             socket/voiceHandler.ts, rooms/RoomManager.ts, config.ts,
 //             db/playerQueries.ts, db/inventoryQueries.ts
@@ -21,13 +22,14 @@ import {
   MAX_PLAYER_NAME,
   SKINS,
   ROOM_SWITCH_COOLDOWN_MS,
+  clampAndResolve,
 } from "@cozy/shared";
 import type { CreatureTypeId, RoomId, SkinId } from "@cozy/shared";
 import type { RoomManager } from "../rooms/RoomManager.js";
 import type { Room } from "../rooms/Room.js";
 import { config } from "../config.js";
 import type { TypedServer, TypedSocket } from "./types.js";
-import { sanitizePosition, stripControlChars, createRateLimiter, clamp } from "./validation.js";
+import { sanitizePosition, stripControlChars, createRateLimiter } from "./validation.js";
 import { sendChatHistory, cleanupChat, clearHistory } from "./chatHandler.js";
 import { cleanupVoice } from "./voiceHandler.js";
 import {
@@ -202,13 +204,14 @@ export function registerConnectionHandler(
 
         const position = sanitizePosition(data.position);
 
-        // Clamp to room bounds
+        // Clamp to room bounds + obstacle collision
         const roomConfig: RoomConfig | undefined =
           roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
         if (roomConfig) {
-          const { bounds } = roomConfig.environment;
-          position.x = clamp(position.x, bounds.minX, bounds.maxX);
-          position.z = clamp(position.z, bounds.minZ, bounds.maxZ);
+          const { bounds, obstacles } = roomConfig.environment;
+          const resolved = clampAndResolve(position.x, position.z, bounds, obstacles);
+          position.x = resolved.x;
+          position.z = resolved.z;
         }
 
         const room = roomManager.getRoom(roomId);

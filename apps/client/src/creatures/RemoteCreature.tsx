@@ -79,11 +79,11 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
         (s) => s.id === player.sitSpotId,
       );
       if (sitSpot) {
-        group.position.set(sitSpot.position.x, 0, sitSpot.position.z);
+        group.position.set(sitSpot.position.x, sitSpot.position.y, sitSpot.position.z);
         group.rotation.y = sitSpot.rotation;
       }
       if (!wasSitting.current) {
-        modelRef.current?.setAnimation("rest");
+        modelRef.current?.setAnimation(sitSpot?.animation ?? "rest");
         wasSitting.current = true;
         // Reset hysteresis so we don't flicker on stand
         movingFrames.current = 0;
@@ -94,8 +94,9 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
       return;
     }
 
-    // Just stood up — resume idle
+    // Just stood up — reset Y to ground, resume idle
     if (wasSitting.current) {
+      group.position.y = 0;
       wasSitting.current = false;
       modelRef.current?.setAnimation("idle");
     }
