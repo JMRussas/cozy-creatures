@@ -5,8 +5,7 @@
 // inputs are validated/sanitized.
 //
 // Depends on: @cozy/shared (event types, Player, CREATURES, SKINS, ROOMS,
-//             DEFAULT_ROOM, MAX_PLAYER_NAME, ROOM_SWITCH_COOLDOWN_MS,
-//             clampAndResolve),
+//             DEFAULT_ROOM, MAX_PLAYER_NAME, ROOM_SWITCH_COOLDOWN_MS),
 //             socket/types.ts, socket/validation.ts, socket/chatHandler.ts,
 //             socket/voiceHandler.ts, rooms/RoomManager.ts, config.ts,
 //             db/playerQueries.ts, db/inventoryQueries.ts
@@ -22,7 +21,6 @@ import {
   MAX_PLAYER_NAME,
   SKINS,
   ROOM_SWITCH_COOLDOWN_MS,
-  clampAndResolve,
 } from "@cozy/shared";
 import type { CreatureTypeId, RoomId, SkinId } from "@cozy/shared";
 import type { RoomManager } from "../rooms/RoomManager.js";
@@ -204,14 +202,15 @@ export function registerConnectionHandler(
 
         const position = sanitizePosition(data.position);
 
-        // Clamp to room bounds + obstacle collision
+        // Clamp to room bounds (obstacle collision is client-side UX only —
+        // the server can't know if the player is walking to a sit spot inside
+        // an obstacle zone, so we just enforce the outer bounds here)
         const roomConfig: RoomConfig | undefined =
           roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
         if (roomConfig) {
-          const { bounds, obstacles } = roomConfig.environment;
-          const resolved = clampAndResolve(position.x, position.z, bounds, obstacles);
-          position.x = resolved.x;
-          position.z = resolved.z;
+          const { bounds } = roomConfig.environment;
+          position.x = Math.max(bounds.minX, Math.min(bounds.maxX, position.x));
+          position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, position.z));
         }
 
         const room = roomManager.getRoom(roomId);

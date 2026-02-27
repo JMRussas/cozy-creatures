@@ -38,4 +38,19 @@ describe("room constants", () => {
     }
   });
 
+  it("obstacle definitions are well-formed", () => {
+    for (const [, config] of Object.entries(ROOMS)) {
+      for (const obs of config.environment.obstacles) {
+        if (obs.type === "circle") {
+          expect(obs.radius).toBeGreaterThan(0);
+          expect(Number.isFinite(obs.x)).toBe(true);
+          expect(Number.isFinite(obs.z)).toBe(true);
+        } else {
+          expect(obs.minX).toBeLessThan(obs.maxX);
+          expect(obs.minZ).toBeLessThan(obs.maxZ);
+        }
+      }
+    }
+  });
+
 });
