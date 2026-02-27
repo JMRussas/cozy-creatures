@@ -24,8 +24,7 @@ export default function ChatBubble({ playerId }: ChatBubbleProps) {
     <Html
       position={[0, 1.6, 0]}
       center
-      distanceFactor={10}
-      style={{ pointerEvents: "none" }}
+      style={{ pointerEvents: "none", whiteSpace: "nowrap" }}
     >
       <div className="max-w-48 rounded-lg bg-white/90 px-2 py-1 text-center text-xs text-gray-800 shadow-md">
         {content}

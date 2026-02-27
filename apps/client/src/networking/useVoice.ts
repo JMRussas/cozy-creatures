@@ -34,6 +34,7 @@ export default function useVoice(): void {
   const muted = useVoiceStore((s) => s.muted);
   const deafened = useVoiceStore((s) => s.deafened);
   const inputMode = useVoiceStore((s) => s.inputMode);
+  const outputVolume = useVoiceStore((s) => s.outputVolume);
 
   const roomRef = useRef<Room | null>(null);
   const teardownRef = useRef<(() => void) | null>(null);
@@ -78,16 +79,24 @@ export default function useVoice(): void {
           throw new Error(`Token request failed: ${res.status}`);
         }
 
-        const { token, url } = (await res.json()) as VoiceTokenResponse;
+        const { token } = (await res.json()) as VoiceTokenResponse;
         if (cancelled) return;
+
+        // Connect via Vite proxy (/livekit → ws://localhost:7880) so it works
+        // over both HTTP and HTTPS. Derives the WebSocket URL from page origin.
+        const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const livekitUrl = `${wsProto}//${window.location.host}/livekit`;
 
         // Wire up events before connecting; store teardown for cleanup
         teardownRef.current = setupRoomEvents(room);
 
-        await room.connect(url, token);
+        await room.connect(livekitUrl, token);
         if (cancelled) return;
 
         useVoiceStore.getState().setConnectionState("connected");
+
+        // Start audio playback (required on mobile browsers that block autoplay)
+        await room.startAudio();
 
         // Publish mic track (starts muted per voiceStore default)
         await room.localParticipant.setMicrophoneEnabled(
@@ -142,6 +151,23 @@ export default function useVoice(): void {
       }
     }
   }, [deafened]);
+
+  // --- Sync output volume to attached audio elements ---
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || room.state !== ConnectionState.Connected) return;
+
+    for (const participant of room.remoteParticipants.values()) {
+      for (const pub of participant.audioTrackPublications.values()) {
+        const track = pub.track;
+        if (track && track.kind === Track.Kind.Audio) {
+          track.attachedElements.forEach((el) => {
+            (el as HTMLMediaElement).volume = outputVolume;
+          });
+        }
+      }
+    }
+  }, [outputVolume]);
 
   // --- Push-to-talk ---
   useEffect(() => {
@@ -206,13 +232,27 @@ function setupRoomEvents(room: Room): () => void {
     console.log("[voice] disconnected");
   }
 
-  // M4: Apply deafen state to late-joining participants' audio tracks
+  // Attach remote audio tracks to the DOM for playback and apply deafen state
   function onTrackSubscribed(
     track: RemoteTrack,
     publication: RemoteTrackPublication,
   ) {
-    if (track.kind === Track.Kind.Audio && useVoiceStore.getState().deafened) {
-      publication.setEnabled(false);
+    if (track.kind === Track.Kind.Audio) {
+      // Apply deafen state to late-joining participants
+      if (useVoiceStore.getState().deafened) {
+        publication.setEnabled(false);
+      }
+      // Attach audio element to DOM so the track actually plays
+      const el = track.attach();
+      el.volume = useVoiceStore.getState().outputVolume;
+      document.body.appendChild(el);
+    }
+  }
+
+  // Detach and remove audio elements when a track is unsubscribed
+  function onTrackUnsubscribed(track: RemoteTrack) {
+    if (track.kind === Track.Kind.Audio) {
+      track.detach().forEach((el) => el.remove());
     }
   }
 
@@ -225,6 +265,7 @@ function setupRoomEvents(room: Room): () => void {
   room.on(RoomEvent.Reconnected, onReconnected);
   room.on(RoomEvent.Disconnected, onDisconnected);
   room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
+  room.on(RoomEvent.TrackUnsubscribed, onTrackUnsubscribed);
 
   return () => {
     room.localParticipant.off(
@@ -236,5 +277,6 @@ function setupRoomEvents(room: Room): () => void {
     room.off(RoomEvent.Reconnected, onReconnected);
     room.off(RoomEvent.Disconnected, onDisconnected);
     room.off(RoomEvent.TrackSubscribed, onTrackSubscribed);
+    room.off(RoomEvent.TrackUnsubscribed, onTrackUnsubscribed);
   };
 }

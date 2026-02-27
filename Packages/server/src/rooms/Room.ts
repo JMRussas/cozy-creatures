@@ -1,6 +1,6 @@
 // Cozy Creatures - Room
 //
-// Holds the state for a single room: players, metadata, capacity.
+// Holds the state for a single room: players, metadata, capacity, sit spots.
 //
 // Depends on: @cozy/shared (Player, RoomState, RoomInfo, RoomConfig)
 // Used by:    RoomManager.ts, connectionHandler.ts
@@ -14,6 +14,8 @@ export class Room {
   readonly theme: string;
   readonly maxPlayers: number;
   private players: Map<string, Player> = new Map();
+  /** Maps sit spot ID → player ID currently occupying it. */
+  private sitSpotOccupants: Map<string, string> = new Map();
 
   constructor(config: RoomConfig) {
     this.id = config.id;
@@ -31,6 +33,7 @@ export class Room {
   }
 
   removePlayer(id: string): boolean {
+    this.releaseSitSpot(id);
     return this.players.delete(id);
   }
 
@@ -43,6 +46,45 @@ export class Room {
     if (player) {
       player.position = position;
     }
+  }
+
+  /**
+   * Claim a sit spot for a player. Releases any previous spot the player held.
+   * Returns true if the spot was successfully claimed, false if already occupied.
+   */
+  occupySitSpot(playerId: string, sitSpotId: string): boolean {
+    if (this.sitSpotOccupants.has(sitSpotId)) return false;
+    this.releaseSitSpot(playerId);
+    this.sitSpotOccupants.set(sitSpotId, playerId);
+
+    const player = this.players.get(playerId);
+    if (player) {
+      player.sitSpotId = sitSpotId;
+    }
+    return true;
+  }
+
+  /**
+   * Release whatever sit spot a player currently holds.
+   * Returns the spot ID that was released, or null if the player wasn't sitting.
+   */
+  releaseSitSpot(playerId: string): string | null {
+    for (const [spotId, occupant] of this.sitSpotOccupants) {
+      if (occupant === playerId) {
+        this.sitSpotOccupants.delete(spotId);
+        const player = this.players.get(playerId);
+        if (player) {
+          player.sitSpotId = undefined;
+        }
+        return spotId;
+      }
+    }
+    return null;
+  }
+
+  /** Check if a sit spot is currently occupied. */
+  isSitSpotOccupied(sitSpotId: string): boolean {
+    return this.sitSpotOccupants.has(sitSpotId);
   }
 
   get playerCount(): number {

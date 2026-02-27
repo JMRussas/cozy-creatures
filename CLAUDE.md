@@ -13,6 +13,8 @@ pnpm dev:server       # Server only
 pnpm build            # Production build
 ```
 
+> **3D Models:** Creature models (`.glb` files) are not included — they are commercial assets. The app runs without them using procedural fallbacks. See [`apps/client/public/assets/creatures/README.md`](apps/client/public/assets/creatures/README.md) for model format requirements.
+
 ## Project Structure
 
 ```
@@ -25,10 +27,11 @@ cozy-creatures/
 │   └── client/                   # React + Vite + R3F (port 5173)
 │       ├── src/
 │       │   ├── main.tsx          # Entry point
-│       │   ├── App.tsx           # Root component
-│       │   ├── scene/            # Three.js scene, camera, lighting
+│       │   ├── App.tsx           # Root component (join form + InRoomView + room browser)
+│       │   ├── scene/            # Three.js scene, camera
+│       │   │   └── environments/ # Per-room 3D environments, click plane, sit spots, lighting
 │       │   ├── creatures/        # glTF models, animations, shaders, accessories, particles, overlays/
-│       │   ├── ui/               # Feature subfolders: chat/, voice/, skins/, creatures/
+│       │   ├── ui/               # Feature subfolders: chat/, voice/, skins/, creatures/, rooms/, transitions/
 │       │   ├── networking/       # Socket.io client, LiveKit voice, spatial audio
 │       │   ├── stores/           # Zustand stores (player, room, chat, voice, skin)
 │       │   ├── utils/            # Shared math helpers
@@ -73,6 +76,7 @@ cozy-creatures/
 | [.claude/code_review_stage4.md](.claude/code_review_stage4.md) | Creature system code review (14 findings, all resolved) |
 | [.claude/code_review_stage5.md](.claude/code_review_stage5.md) | Skin system code review (52 findings, all resolved) |
 | [.claude/code_review_holistic.md](.claude/code_review_holistic.md) | Holistic cross-package review (7H, 10M, 12L — all H/M resolved) |
+| [.claude/code_review_stage6.md](.claude/code_review_stage6.md) | Stage 6 code review (2C, 4H, 10M, 12L — all C/H/M resolved) |
 | [.claude/file_index.md](.claude/file_index.md) | Complete file index: summaries, line counts, dependency graphs |
 
 ## Tech Stack

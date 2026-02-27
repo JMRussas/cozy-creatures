@@ -90,7 +90,7 @@ export const config = {
   /** Minimum interval (ms) between REST API requests per IP. */
   apiRateMs: parseIntEnv(
     process.env.API_RATE_MS,
-    200,
+    50,
     "API_RATE_MS",
     0,
   ),

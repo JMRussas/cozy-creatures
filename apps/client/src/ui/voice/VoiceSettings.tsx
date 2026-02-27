@@ -46,16 +46,23 @@ export default function VoiceSettings({ onClose }: VoiceSettingsProps) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number>(0);
 
-  // Enumerate audio input devices
+  // Enumerate audio input devices — request mic permission first so
+  // browsers expose device labels and unique IDs.
   useEffect(() => {
-    navigator.mediaDevices
-      .enumerateDevices()
-      .then((allDevices) => {
+    async function enumerate() {
+      try {
+        // Brief getUserMedia to trigger permission prompt if needed.
+        // This unlocks full device info (labels + stable IDs).
+        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        tempStream.getTracks().forEach((t) => t.stop());
+
+        const allDevices = await navigator.mediaDevices.enumerateDevices();
         setDevices(allDevices.filter((d) => d.kind === "audioinput"));
-      })
-      .catch(() => {
-        /* User may not have granted mic permission yet */
-      });
+      } catch {
+        /* User denied mic or no device available */
+      }
+    }
+    enumerate();
   }, []);
 
   // Mic level meter — uses a separate getUserMedia stream because LiveKit
@@ -81,6 +88,8 @@ export default function VoiceSettings({ onClose }: VoiceSettingsProps) {
 
         stream = mediaStream;
         audioCtx = new AudioContext();
+        // Resume in case browser suspended the context (requires user gesture)
+        if (audioCtx.state === "suspended") await audioCtx.resume();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;

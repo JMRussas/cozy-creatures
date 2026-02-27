@@ -57,6 +57,15 @@ export const CREATURE_COLORS: Record<CreatureTypeId, { body: string; accent: str
   pangolin: { body: "#A89070", accent: "#8B7558" },
 };
 
+/**
+ * Per-creature Y-axis rotation offset (radians) to normalize model facing
+ * direction. FBX models from Cute Zoo 4 have inconsistent default orientations.
+ * 0 = model already faces -Z (standard Three.js forward).
+ */
+export const MODEL_ROTATION_Y: Partial<Record<CreatureTypeId, number>> = {
+  "red-panda": Math.PI / 2,
+};
+
 /** Creature geometry constants. */
 export const CREATURE_GEOMETRY = {
   bodyRadius: 0.3,
@@ -100,7 +109,7 @@ export const GRID = {
 
 // --- Lighting ---
 
-/** Lighting configuration. */
+/** Default lighting configuration (used as fallback). */
 export const LIGHTING = {
   ambient: { intensity: 0.6, color: "#ffe4c9" },
   main: {
@@ -116,4 +125,35 @@ export const LIGHTING = {
     intensity: 0.3,
     color: "#c9d6ff",
   },
+} as const;
+
+// --- Room Environments ---
+
+/** Per-room lighting overrides. */
+export const ROOM_LIGHTING = {
+  "cozy-cafe": {
+    ambient: { intensity: 0.7, color: "#ffe0b2" },
+    main: { position: [6, 10, 4] as const, intensity: 0.9, color: "#ffcc80" },
+    fill: { position: [-4, 6, -3] as const, intensity: 0.2, color: "#e6d5c3" },
+  },
+  "rooftop-garden": {
+    ambient: { intensity: 0.5, color: "#ffcba4" },
+    main: { position: [10, 4, 8] as const, intensity: 1.2, color: "#ff9e80" },
+    fill: { position: [-6, 8, -4] as const, intensity: 0.3, color: "#ffab91" },
+  },
+  "starlight-lounge": {
+    ambient: { intensity: 0.3, color: "#1a1040" },
+    main: { position: [4, 12, 4] as const, intensity: 0.4, color: "#7c4dff" },
+    fill: { position: [-4, 6, -4] as const, intensity: 0.2, color: "#536dfe" },
+  },
+} as const;
+
+/** Sit spot marker visual constants. */
+export const SIT_SPOT = {
+  markerRadius: 0.4,
+  markerOpacity: 0.3,
+  markerHoverOpacity: 0.6,
+  markerColor: "#a5d6a7",
+  markerOccupiedColor: "#ef9a9a",
+  labelOffsetY: 0.8,
 } as const;

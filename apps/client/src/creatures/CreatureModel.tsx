@@ -17,9 +17,9 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { CREATURES, SKINS } from "@cozy/shared";
+import { BASE_ANIMATIONS, CREATURES, SKINS } from "@cozy/shared";
 import type { CreatureTypeId, SkinDefinition, SkinId } from "@cozy/shared";
-import { ANIMATION_CROSSFADE_DURATION } from "../config";
+import { ANIMATION_CROSSFADE_DURATION, MODEL_ROTATION_Y } from "../config";
 import { applySkinShader, disposeSkinMaterials } from "./shaders/hslShader";
 import AccessoryAttacher from "./accessories/AccessoryAttacher";
 import ParticleEffect from "./effects/ParticleEffect";
@@ -34,11 +34,21 @@ interface CreatureModelProps {
   skinId?: SkinId;
 }
 
+/** Only keep base-named animation clips; skip Blender export duplicates (.001, etc.). */
+const VALID_ANIM_NAMES = new Set<string>(BASE_ANIMATIONS);
+
 const CreatureModel = forwardRef<CreatureModelHandle, CreatureModelProps>(
   function CreatureModel({ creatureType, skinId }, ref) {
     const definition = CREATURES[creatureType];
     const skin: SkinDefinition | undefined = skinId ? SKINS[skinId] : undefined;
-    const { scene, animations } = useGLTF(definition.modelPath);
+    const { scene, animations: rawAnimations } = useGLTF(definition.modelPath);
+
+    // Filter to only base-named clips (idle, walk, run, etc.) — some glTF files
+    // contain Blender export duplicates (idle.001, walk.002) that spam warnings.
+    const animations = useMemo(
+      () => rawAnimations.filter((clip) => VALID_ANIM_NAMES.has(clip.name)),
+      [rawAnimations],
+    );
 
     // Deep-clone scene per instance so skeletons are independent.
     // SkeletonUtils.clone shares geometry/materials with the glTF cache.
@@ -135,9 +145,11 @@ const CreatureModel = forwardRef<CreatureModelHandle, CreatureModelProps>(
       mixer.update(delta);
     });
 
+    const rotationY = MODEL_ROTATION_Y[creatureType] ?? 0;
+
     return (
       <group ref={groupRef}>
-        <primitive object={clone} />
+        <primitive object={clone} rotation={[0, rotationY, 0]} />
         {skin && skin.accessories.length > 0 && (
           <AccessoryAttacher scene={clone} accessories={skin.accessories} />
         )}

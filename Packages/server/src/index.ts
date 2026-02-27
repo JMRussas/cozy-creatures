@@ -43,6 +43,10 @@ const io = new Server<
   maxHttpBufferSize: config.maxHttpBufferSize,
 });
 
+// Trust X-Forwarded-For from loopback (Vite dev proxy).
+// Without this, all proxied requests share a single rate-limit bucket.
+app.set("trust proxy", "loopback");
+
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
 
@@ -51,8 +55,9 @@ const apiLimiter = createRateLimiter(config.apiRateMs);
 setInterval(() => apiLimiter.sweep(config.sweepMaxAgeMs), config.sweepIntervalMs).unref();
 
 app.use("/api", (req, res, next) => {
-  // Health check is exempt
-  if (req.path === "/health") { next(); return; }
+  // Health check and voice token are exempt (voice token is already auth-gated:
+  // requires player to be in room, validated server-side)
+  if (req.path === "/health" || req.path === "/voice/token") { next(); return; }
   const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
   if (apiLimiter.isRateLimited(ip)) {
     res.status(429).json({ error: "Too many requests" });

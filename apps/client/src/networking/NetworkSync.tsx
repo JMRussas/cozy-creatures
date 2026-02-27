@@ -25,6 +25,9 @@ export default function NetworkSync() {
       if (now - lastSentRef.current < POSITION_UPDATE_THROTTLE_MS) return;
       if (!socket.connected) return;
 
+      // Don't broadcast position while sitting — position is server-authoritative
+      if (state.isSitting) return;
+
       // Only emit if position actually changed
       const { x, y, z } = state.position;
       const prev = lastPosRef.current;

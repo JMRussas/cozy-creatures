@@ -43,7 +43,7 @@ export default function CreaturePreview({
   return (
     <div className={`${SIZE_CLASSES[size]} overflow-hidden rounded-lg bg-gray-900/60`}>
       <Canvas
-        camera={{ position: [1.5, 1.2, 1.5], fov: 35 }}
+        camera={{ position: [0, 0.7, -2.5], fov: 35 }}
         gl={{ alpha: true }}
       >
         <ambientLight intensity={0.8} color="#ffe4c9" />
@@ -54,6 +54,7 @@ export default function CreaturePreview({
         </Suspense>
 
         <OrbitControls
+          target={[0, 0.45, 0]}
           autoRotate
           autoRotateSpeed={3}
           enableZoom={false}

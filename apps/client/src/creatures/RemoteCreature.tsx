@@ -2,19 +2,20 @@
 //
 // Renders another player's creature with position interpolation.
 // Derives isMoving from position deltas with hysteresis to avoid
-// animation flicker at low network rates. Wrapped in Suspense with
-// a CreatureFallback while glTF loads.
+// animation flicker at low network rates. When sitting, snaps to sit
+// spot position/rotation and plays rest animation. Wrapped in Suspense
+// with a CreatureFallback while glTF loads.
 //
 // Depends on: @react-three/fiber, three, stores/roomStore, CreatureModel,
 //             CreatureFallback, CreatureShadow, ChatBubble, SpeakingIndicator,
-//             config, utils/math, @cozy/shared
+//             config, utils/math, @cozy/shared (ROOMS, SKINS, DEFAULT_CREATURE)
 // Used by:    creatures/RemotePlayers.tsx
 
 import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { DEFAULT_CREATURE, SKINS } from "@cozy/shared";
-import type { SkinId } from "@cozy/shared";
+import { DEFAULT_CREATURE, ROOMS, SKINS } from "@cozy/shared";
+import type { RoomId, SkinId } from "@cozy/shared";
 import { useRoomStore } from "../stores/roomStore";
 import CreatureModel from "./CreatureModel";
 import type { CreatureModelHandle } from "./CreatureModel";
@@ -57,6 +58,7 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
   const movingFrames = useRef(0);
   const idleFrames = useRef(0);
   const isWalking = useRef(false);
+  const wasSitting = useRef(false);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -64,6 +66,39 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
 
     const player = useRoomStore.getState().players[playerId];
     if (!player) return;
+
+    const roomId = useRoomStore.getState().roomId;
+
+    // --- Sit/stand handling ---
+    const isSitting = !!player.sitSpotId;
+
+    if (isSitting) {
+      // Snap to sit spot position/rotation and play rest animation
+      const roomConfig = roomId && roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
+      const sitSpot = roomConfig?.environment.sitSpots.find(
+        (s) => s.id === player.sitSpotId,
+      );
+      if (sitSpot) {
+        group.position.set(sitSpot.position.x, 0, sitSpot.position.z);
+        group.rotation.y = sitSpot.rotation;
+      }
+      if (!wasSitting.current) {
+        modelRef.current?.setAnimation("rest");
+        wasSitting.current = true;
+        // Reset hysteresis so we don't flicker on stand
+        movingFrames.current = 0;
+        idleFrames.current = 0;
+        isWalking.current = false;
+      }
+      prevPos.current?.copy(group.position);
+      return;
+    }
+
+    // Just stood up — resume idle
+    if (wasSitting.current) {
+      wasSitting.current = false;
+      modelRef.current?.setAnimation("idle");
+    }
 
     targetVec.current.set(player.position.x, 0, player.position.z);
 

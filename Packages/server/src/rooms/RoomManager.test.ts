@@ -92,6 +92,31 @@ describe("RoomManager", () => {
     });
   });
 
+  describe("rejoin after stale session (evict-and-retry)", () => {
+    it("allows a player to rejoin after being evicted from a stale session", () => {
+      const mgr = new RoomManager();
+      const player = makePlayer("p1");
+
+      // First join succeeds
+      const result1 = mgr.joinRoom(DEFAULT_ROOM, player);
+      expect("room" in result1).toBe(true);
+
+      // Second join with same ID fails (duplicate)
+      const result2 = mgr.joinRoom(DEFAULT_ROOM, player);
+      expect(result2).toEqual({ error: "duplicate" });
+
+      // Evict (simulates what connectionHandler.evictPlayer does)
+      mgr.leaveRoom(DEFAULT_ROOM, "p1");
+
+      // Retry succeeds
+      const result3 = mgr.joinRoom(DEFAULT_ROOM, player);
+      expect("room" in result3).toBe(true);
+      if ("room" in result3) {
+        expect(result3.room.getPlayer("p1")).toBeDefined();
+      }
+    });
+  });
+
   describe("leaveRoom", () => {
     it("removes a player from the room", () => {
       const mgr = new RoomManager();

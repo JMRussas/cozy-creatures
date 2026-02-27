@@ -1,22 +1,29 @@
 // Cozy Creatures - Isometric Scene
 //
 // Top-level R3F Canvas wrapper that composes the 3D scene:
-// camera, lighting, ground, local creature, and remote players.
+// camera, room environment, local creature, and remote players.
 //
-// Depends on: CameraRig, Ground, Lighting, Creature, RemotePlayers, NetworkSync,
-//             SpatialAudioManager
+// Depends on: CameraRig, scene/environments/RoomEnvironment, Creature,
+//             RemotePlayers, NetworkSync, SpatialAudioManager,
+//             stores/roomStore, @cozy/shared (ROOMS, RoomId)
 // Used by:    App.tsx
 
 import { Canvas } from "@react-three/fiber";
+import type { RoomId } from "@cozy/shared";
+import { ROOMS } from "@cozy/shared";
 import CameraRig from "./CameraRig";
-import Ground from "./Ground";
-import Lighting from "./Lighting";
+import RoomEnvironment from "./environments/RoomEnvironment";
 import Creature from "../creatures/Creature";
 import RemotePlayers from "../creatures/RemotePlayers";
 import NetworkSync from "../networking/NetworkSync";
 import SpatialAudioManager from "../networking/SpatialAudioManager";
+import { useRoomStore } from "../stores/roomStore";
 
 export default function IsometricScene() {
+  const roomId = useRoomStore((s) => s.roomId);
+  const theme =
+    roomId && roomId in ROOMS ? ROOMS[roomId as RoomId].theme : "cozy-cafe";
+
   return (
     <Canvas
       shadows
@@ -25,8 +32,7 @@ export default function IsometricScene() {
       style={{ width: "100%", height: "100%" }}
     >
       <CameraRig />
-      <Lighting />
-      <Ground />
+      <RoomEnvironment theme={theme} />
       <Creature />
       <RemotePlayers />
       <NetworkSync />

@@ -2,7 +2,7 @@
 
 Complete index of all source files with one-line summaries, line counts, and dependency edges.
 
-**75+ source files, ~5,200+ lines** (excluding tests and config files).
+**85+ source files, ~6,400+ lines** (excluding tests and config files).
 
 ## Shared Package (`@cozy/shared` — Packages/shared/src/)
 
@@ -11,21 +11,21 @@ Complete index of all source files with one-line summaries, line counts, and dep
 | File | Lines | Summary |
 |------|------:|---------|
 | [index.ts](../Packages/shared/src/index.ts) | 15 | Barrel re-export of all types and constants |
-| [types/player.ts](../Packages/shared/src/types/player.ts) | 32 | `Player`, `Position`, `PlayerProfile` interfaces |
+| [types/player.ts](../Packages/shared/src/types/player.ts) | 39 | `Player` (incl. `sitSpotId?`), `Position`, `PlayerProfile` interfaces |
 | [types/creature.ts](../Packages/shared/src/types/creature.ts) | 14 | `CreatureDefinition` interface — species metadata |
-| [types/room.ts](../Packages/shared/src/types/room.ts) | 30 | `RoomBase`, `RoomConfig`, `RoomInfo`, `RoomState` |
+| [types/room.ts](../Packages/shared/src/types/room.ts) | 59 | `RoomBase`, `RoomConfig` (with `environment`), `RoomInfo`, `RoomState`, `WalkableBounds`, `SitSpot`, `RoomEnvironment` |
 | [types/chat.ts](../Packages/shared/src/types/chat.ts) | 17 | `ChatMessage` — single chat message structure |
 | [types/voice.ts](../Packages/shared/src/types/voice.ts) | 26 | `VoiceState`, `VoiceTokenRequest`, `VoiceTokenResponse` |
-| [types/events.ts](../Packages/shared/src/types/events.ts) | 64 | `ClientToServerEvents`, `ServerToClientEvents`, `SocketData` (incl. voice:state, skin events) |
+| [types/events.ts](../Packages/shared/src/types/events.ts) | 97 | `ClientToServerEvents`, `ServerToClientEvents`, `SocketData` (incl. room switch, sit/stand, player count events) |
 | [types/skin.ts](../Packages/shared/src/types/skin.ts) | 90 | `SkinRarity`, `SkinColorShift`, `SkinAccessory`, `SkinParticleEffect`, `SkinDefinition`, `SkinSet`, `InventoryItem`, `RarityInfo` |
 
 ### Constants
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [constants/config.ts](../Packages/shared/src/constants/config.ts) | 49 | Numeric limits: `MAX_PLAYER_NAME`, `MAX_CHAT_MESSAGE`, position bounds, rate limits, voice spatial/PTT constants |
+| [constants/config.ts](../Packages/shared/src/constants/config.ts) | 60 | Numeric limits, rate limits, voice constants, room transition/sit spot thresholds |
 | [constants/creatures.ts](../Packages/shared/src/constants/creatures.ts) | 69 | `CREATURES` registry (otter, red-panda, sloth, chipmunk, possum, pangolin), `CreatureTypeId`, `DEFAULT_CREATURE`, `BASE_ANIMATIONS` |
-| [constants/rooms.ts](../Packages/shared/src/constants/rooms.ts) | 38 | `ROOMS` registry (3 rooms), `RoomId`, `DEFAULT_ROOM` |
+| [constants/rooms.ts](../Packages/shared/src/constants/rooms.ts) | 67 | `ROOMS` registry (3 rooms with environments, bounds, sit spots), `RoomId`, `DEFAULT_ROOM` |
 | [constants/skins.ts](../Packages/shared/src/constants/skins.ts) | 447 | `SKINS` registry (30 skins), `SKIN_SETS` (4 themed sets), `RARITIES`, `DEFAULT_SKIN_IDS`, `SkinId`, `SkinSetId` |
 
 ### Dependency Graph
@@ -47,9 +47,9 @@ room.ts ← rooms.ts ← config.ts
 | [index.ts](../Packages/server/src/index.ts) | 116 | Express + Socket.io setup, IP rate limiting, voice router mount, graceful shutdown |
 | [config.ts](../Packages/server/src/config.ts) | 95 | Env-var-driven config with validation (`PORT`, `CORS_ORIGIN`, rate limits, LiveKit keys) |
 | [api/voice.ts](../Packages/server/src/api/voice.ts) | 61 | `POST /api/voice/token` — validates request, creates LiveKit JWT, returns token + URL |
-| [rooms/Room.ts](../Packages/server/src/rooms/Room.ts) | 74 | Single room state: player Map, capacity, `getState()`, `getInfo()` |
+| [rooms/Room.ts](../Packages/server/src/rooms/Room.ts) | 117 | Single room state: player Map, capacity, sit spot occupancy (`occupySitSpot`, `releaseSitSpot`), `getState()`, `getInfo()` |
 | [rooms/RoomManager.ts](../Packages/server/src/rooms/RoomManager.ts) | 45 | Manages all Room instances, initializes from `ROOMS` constant |
-| [socket/connectionHandler.ts](../Packages/server/src/socket/connectionHandler.ts) | 295 | `player:join` (reuses DB player ID), `player:move`, `player:leave`, `room:list`, `player:equip-skin`, `disconnect` handlers + voice/skin cleanup |
+| [socket/connectionHandler.ts](../Packages/server/src/socket/connectionHandler.ts) | 626 | All socket handlers: join, move (bounds-clamped), leave, switch-room, sit, stand, equip-skin, room:list, disconnect + rate limiters |
 | [socket/chatHandler.ts](../Packages/server/src/socket/chatHandler.ts) | 141 | `chat:message` handler, in-memory ring buffer history, rate limiting |
 | [socket/voiceHandler.ts](../Packages/server/src/socket/voiceHandler.ts) | 58 | `voice:state` broadcast to room, rate-limited, `cleanupVoice()` export |
 | [socket/profanityFilter.ts](../Packages/server/src/socket/profanityFilter.ts) | 35 | Word-list replacement filter — `filterProfanity()` |
@@ -96,15 +96,15 @@ index.ts
 | File | Lines | Summary |
 |------|------:|---------|
 | [main.tsx](../apps/client/src/main.tsx) | 17 | React DOM mount point |
-| [App.tsx](../apps/client/src/App.tsx) | 160 | Join form (CreaturePicker + CreaturePreview + localStorage persistence) + InRoomView |
-| [config.ts](../apps/client/src/config.ts) | 119 | All client visual/gameplay constants (movement, camera, creature geometry, lighting, `ANIMATION_CROSSFADE_DURATION`) |
+| [App.tsx](../apps/client/src/App.tsx) | 229 | Join form (RoomBrowser + CreaturePicker + CreaturePreview) + InRoomView (HUD with Rooms/Skins buttons) + RoomTransition |
+| [config.ts](../apps/client/src/config.ts) | 159 | All client visual/gameplay constants (movement, camera, creature geometry, lighting, room lighting presets, sit spot markers) |
 
 ### Networking
 
 | File | Lines | Summary |
 |------|------:|---------|
 | [networking/socket.ts](../apps/client/src/networking/socket.ts) | 43 | Typed Socket.io singleton with `connect`/`disconnect` lifecycle |
-| [networking/NetworkSync.tsx](../apps/client/src/networking/NetworkSync.tsx) | 42 | Subscribes to playerStore, emits throttled `player:move` (~10Hz) |
+| [networking/NetworkSync.tsx](../apps/client/src/networking/NetworkSync.tsx) | 45 | Subscribes to playerStore, emits throttled `player:move` (~10Hz), suppressed while sitting |
 | [networking/useVoice.ts](../apps/client/src/networking/useVoice.ts) | 196 | LiveKit Room lifecycle: connect/disconnect, mute/deafen sync, push-to-talk, speaker detection |
 | [networking/SpatialAudioManager.tsx](../apps/client/src/networking/SpatialAudioManager.tsx) | 140 | Web Audio PannerNode per remote participant, HRTF spatial positioning via useFrame |
 
@@ -112,8 +112,8 @@ index.ts
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [stores/playerStore.ts](../apps/client/src/stores/playerStore.ts) | 51 | Local player: position, target, isMoving, creatureType, name; `reset()` clears all fields |
-| [stores/roomStore.ts](../apps/client/src/stores/roomStore.ts) | 178 | Room state + Socket.io listeners: join/leave flow, player sync, voice reset |
+| [stores/playerStore.ts](../apps/client/src/stores/playerStore.ts) | 73 | Local player: position, target, isMoving, isSitting, sitSpotId, pendingSitId, creatureType, name; `reset()` clears all |
+| [stores/roomStore.ts](../apps/client/src/stores/roomStore.ts) | 303 | Room state + Socket.io listeners: join/leave/switchRoom, player sync, roomCounts, sit/stand, voice reset |
 | [stores/chatStore.ts](../apps/client/src/stores/chatStore.ts) | 117 | Chat messages, bubble lifecycle (setTimeout-based), unread count |
 | [stores/voiceStore.ts](../apps/client/src/stores/voiceStore.ts) | 139 | Voice state: muted, deafened, speaking, spatial, remote speaking, device settings |
 | [stores/skinStore.ts](../apps/client/src/stores/skinStore.ts) | 103 | Skin inventory, equipped skin, equip/unequip via socket with timeout, REST inventory fetch |
@@ -122,21 +122,31 @@ index.ts
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [scene/IsometricScene.tsx](../apps/client/src/scene/IsometricScene.tsx) | 36 | R3F `<Canvas>` composing all 3D elements + SpatialAudioManager |
+| [scene/IsometricScene.tsx](../apps/client/src/scene/IsometricScene.tsx) | 42 | R3F `<Canvas>` composing camera, RoomEnvironment, creatures, networking |
 | [scene/CameraRig.tsx](../apps/client/src/scene/CameraRig.tsx) | 52 | Orthographic camera with smooth follow via `useFrame` |
-| [scene/Ground.tsx](../apps/client/src/scene/Ground.tsx) | 47 | Invisible click plane + drei `<Grid>` for visual |
-| [scene/Lighting.tsx](../apps/client/src/scene/Lighting.tsx) | 39 | Ambient + 2 directional lights (warm key, cool fill) |
+
+### Room Environments (`scene/environments/`)
+
+| File | Lines | Summary |
+|------|------:|---------|
+| [environments/RoomEnvironment.tsx](../apps/client/src/scene/environments/RoomEnvironment.tsx) | 27 | Theme router: switches on room theme → renders CozyCafe/RooftopGarden/StarlightLounge |
+| [environments/RoomLighting.tsx](../apps/client/src/scene/environments/RoomLighting.tsx) | 45 | Per-room ambient + directional lighting from `ROOM_LIGHTING` config |
+| [environments/ClickPlane.tsx](../apps/client/src/scene/environments/ClickPlane.tsx) | 54 | Invisible ground plane for click-to-move, clamps to bounds, auto-stands on click |
+| [environments/SitSpotMarker.tsx](../apps/client/src/scene/environments/SitSpotMarker.tsx) | 114 | Interactive sit spot circles: hover highlight + label, click to walk-and-sit, occupancy tracking |
+| [environments/CozyCafe.tsx](../apps/client/src/scene/environments/CozyCafe.tsx) | 139 | Procedural cafe: warm wood floor, tables, coffee cups, bar counter, pendant lights, couch, rug |
+| [environments/RooftopGarden.tsx](../apps/client/src/scene/environments/RooftopGarden.tsx) | 197 | Procedural garden: sunset Sky, plants, benches, fairy lights, railing, swing, grass patches |
+| [environments/StarlightLounge.tsx](../apps/client/src/scene/environments/StarlightLounge.tsx) | 235 | Procedural lounge: constellation floor (twinkling Points), glowing orbs, sofas, neon strips, bar |
 
 ### Creatures
 
 | File | Lines | Summary |
 |------|------:|---------|
-| [creatures/Creature.tsx](../apps/client/src/creatures/Creature.tsx) | 100 | Local player: click-to-move, imperative animation drive (idle/walk), Suspense fallback, CreatureShadow |
+| [creatures/Creature.tsx](../apps/client/src/creatures/Creature.tsx) | 168 | Local player: click-to-move, bounds clamping, sit/stand flow, imperative animation drive (idle/walk/rest), Suspense fallback |
 | [creatures/CreatureModel.tsx](../apps/client/src/creatures/CreatureModel.tsx) | 121 | glTF model loader (useGLTF + SkeletonUtils.clone), imperative `setAnimation()` handle, crossfade, HSL skin shader, accessories, particles |
 | [creatures/CreatureFallback.tsx](../apps/client/src/creatures/CreatureFallback.tsx) | 68 | Suspense fallback: procedural capsule+cones+eyes mesh (plain function component) |
 | [creatures/CreatureShadow.tsx](../apps/client/src/creatures/CreatureShadow.tsx) | 23 | Shared shadow circle mesh extracted from Creature + RemoteCreature |
 | [creatures/RemotePlayers.tsx](../apps/client/src/creatures/RemotePlayers.tsx) | 29 | Maps `players` record to `<RemoteCreature>` instances |
-| [creatures/RemoteCreature.tsx](../apps/client/src/creatures/RemoteCreature.tsx) | 122 | Remote player: position lerp, hysteresis-based animation state, CreatureShadow |
+| [creatures/RemoteCreature.tsx](../apps/client/src/creatures/RemoteCreature.tsx) | 160 | Remote player: position lerp, hysteresis-based animation, sit spot snap (rest animation) |
 | [creatures/overlays/ChatBubble.tsx](../apps/client/src/creatures/overlays/ChatBubble.tsx) | 35 | drei `<Html>` overlay above creature — shows latest message |
 | [creatures/overlays/SpeakingIndicator.tsx](../apps/client/src/creatures/overlays/SpeakingIndicator.tsx) | 70 | R3F torus above creature head, pulsing green opacity when speaking |
 | [creatures/overlays/AudioRangeRing.tsx](../apps/client/src/creatures/overlays/AudioRangeRing.tsx) | 32 | Ring geometry at spatial max distance, shown when spatial audio enabled |
@@ -159,6 +169,9 @@ index.ts
 | [ui/skins/SkinInventory.tsx](../apps/client/src/ui/skins/SkinInventory.tsx) | 100 | Owned skins grid with rarity sorting, equip controls, 3D preview sidebar |
 | [ui/skins/SkinPreview.tsx](../apps/client/src/ui/skins/SkinPreview.tsx) | 52 | R3F Canvas turntable preview showing creature with full skin (HSL + accessories + particles) |
 | [ui/skins/RarityBadge.tsx](../apps/client/src/ui/skins/RarityBadge.tsx) | 29 | Pill badge displaying rarity with color; legendary pulse animation (respects reduced motion) |
+| [ui/rooms/RoomCard.tsx](../apps/client/src/ui/rooms/RoomCard.tsx) | 83 | Room card: theme accent, player count, CURRENT/FULL badges |
+| [ui/rooms/RoomBrowser.tsx](../apps/client/src/ui/rooms/RoomBrowser.tsx) | 156 | Room browser (inline + modal modes): card grid, live player counts, room switching |
+| [ui/transitions/RoomTransition.tsx](../apps/client/src/ui/transitions/RoomTransition.tsx) | 26 | Full-screen CSS opacity fade overlay for room switches |
 
 ### Utilities
 
@@ -172,37 +185,44 @@ index.ts
 main.tsx → App.tsx
               ├── roomStore ← socket, playerStore, chatStore, voiceStore
               ├── skinStore ← socket
+              ├── RoomBrowser (inline) ← roomStore, @cozy/shared
+              │     └── RoomCard ← @cozy/shared
               ├── InRoomView
               │     ├── useVoice ← voiceStore, roomStore, playerStore, livekit-client
               │     ├── IsometricScene
               │     │     ├── CameraRig ← playerStore, config
-              │     │     ├── Ground ← playerStore, config
-              │     │     ├── Lighting ← config
-              │     │     ├── Creature ← playerStore, roomStore, skinStore, CreatureModel
+              │     │     ├── RoomEnvironment (theme router)
+              │     │     │     ├── RoomLighting ← config (ROOM_LIGHTING)
+              │     │     │     ├── ClickPlane ← playerStore, @cozy/shared
+              │     │     │     ├── SitSpotMarkers ← playerStore, roomStore
+              │     │     │     └── CozyCafe | RooftopGarden | StarlightLounge
+              │     │     ├── Creature ← playerStore, roomStore, skinStore, socket, @cozy/shared
               │     │     │     └── CreatureModel ← hslShader, AccessoryAttacher, ParticleEffect
               │     │     ├── RemotePlayers ← roomStore
-              │     │     │     └── RemoteCreature ← roomStore, CreatureModel
+              │     │     │     └── RemoteCreature ← roomStore, @cozy/shared, CreatureModel
               │     │     ├── NetworkSync ← playerStore, socket
               │     │     └── SpatialAudioManager ← voiceStore, playerStore, roomStore
               │     ├── ChatPanel ← chatStore, roomStore, voiceStore
               │     ├── VoiceControls ← voiceStore
               │     │     └── VoiceSettings ← voiceStore
-              │     └── SkinShop ← skinStore, @cozy/shared
-              │           ├── SkinInventory ← skinStore, SkinPreview, RarityBadge
-              │           └── SkinPreview ← CreatureModel
+              │     ├── SkinShop ← skinStore, @cozy/shared
+              │     │     ├── SkinInventory ← skinStore, SkinPreview, RarityBadge
+              │     │     └── SkinPreview ← CreatureModel
+              │     ├── RoomBrowser (modal) ← roomStore, @cozy/shared
+              │     └── RoomTransition ← roomStore
 ```
 
 ---
 
-## Test Files (33 files, ~352 tests)
+## Test Files (35 files, ~382 tests)
 
 | File | Tests | What it covers |
 |------|------:|----------------|
-| `Packages/shared/src/constants/config.test.ts` | 12 | Constants validation incl. voice spatial, PTT, throttle |
+| `Packages/shared/src/constants/config.test.ts` | 13 | Constants validation incl. voice spatial, PTT, throttle, room transition |
 | `Packages/shared/src/constants/creatures.test.ts` | 4 | DEFAULT_CREATURE exists, all creatures have required fields + description |
 | `Packages/shared/src/constants/rooms.test.ts` | 2 | DEFAULT_ROOM exists, all rooms have required fields |
 | `Packages/server/src/socket/validation.test.ts` | 24 | isFiniteNumber, clamp, stripControlChars, sanitizePosition, createRateLimiter |
-| `Packages/server/src/rooms/Room.test.ts` | 19 | add/remove/get player, capacity, getState, getInfo |
+| `Packages/server/src/rooms/Room.test.ts` | 27 | add/remove/get player, capacity, getState, getInfo, sit spot occupancy/release |
 | `Packages/server/src/rooms/RoomManager.test.ts` | 12 | Init, getRoom, listRooms, joinRoom, leaveRoom |
 | `Packages/server/src/socket/chatHandler.test.ts` | 13 | sanitizeChatContent (8 cases), chat history ring buffer (5 cases) |
 | `Packages/server/src/socket/profanityFilter.test.ts` | 9 | Replacement, case insensitivity, partial words, punctuation |

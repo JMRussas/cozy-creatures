@@ -18,6 +18,9 @@ export type JoinResponse =
   | { success: true; playerId: string }
   | { success: false; error: string };
 
+/** Callback response for player:sit. */
+export type SitResponse = { success: true } | { success: false; error: string };
+
 /** Events the client can emit to the server. */
 export interface ClientToServerEvents {
   "player:join": (
@@ -36,6 +39,21 @@ export interface ClientToServerEvents {
     data: { skinId: SkinId | "" },
     callback: (response: { success: boolean; error?: string }) => void,
   ) => void;
+
+  /** Stage 6 — Switch to a different room without re-joining. */
+  "player:switch-room": (
+    data: { roomId: RoomId },
+    callback: (response: JoinResponse) => void,
+  ) => void;
+
+  /** Stage 6 — Request to sit at a designated spot. */
+  "player:sit": (
+    data: { sitSpotId: string },
+    callback: (response: SitResponse) => void,
+  ) => void;
+
+  /** Stage 6 — Stand up from the current sit spot. */
+  "player:stand": () => void;
 }
 
 /** Events the server can emit to clients. */
@@ -51,6 +69,21 @@ export interface ServerToClientEvents {
   "voice:state": (data: { id: string } & VoiceState) => void;
 
   "player:skin-changed": (data: { id: string; skinId: SkinId | null }) => void;
+
+  "player:kicked": (data: { reason: string }) => void;
+
+  /** Stage 6 — Live player count update for a specific room. */
+  "room:player-count": (data: { roomId: string; playerCount: number }) => void;
+
+  /** Stage 6 — A player sat down at a sit spot. */
+  "player:sat": (data: {
+    id: string;
+    sitSpotId: string;
+    position: Position;
+  }) => void;
+
+  /** Stage 6 — A player stood up from a sit spot. */
+  "player:stood": (data: { id: string }) => void;
 }
 
 // Inter-server events (unused for now)

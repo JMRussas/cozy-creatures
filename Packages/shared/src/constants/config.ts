@@ -47,3 +47,14 @@ export const VOICE_PTT_KEY = "KeyV";
 
 /** Minimum interval (ms) between voice state broadcasts. */
 export const VOICE_STATE_THROTTLE_MS = 200;
+
+// --- Rooms ---
+
+/** Duration (ms) of the fade transition when switching rooms (half out, half in). */
+export const ROOM_TRANSITION_DURATION_MS = 600;
+
+/** Distance threshold for snapping to a sit spot on arrival. */
+export const SIT_SPOT_ARRIVAL_THRESHOLD = 0.3;
+
+/** Minimum interval (ms) between room switch requests. */
+export const ROOM_SWITCH_COOLDOWN_MS = 3000;

@@ -25,6 +25,8 @@ export interface Player {
   roomId: RoomId;
   /** Stage 4+ — cosmetic skin override. */
   skinId?: SkinId;
+  /** Stage 6 — ID of the sit spot the player is occupying, if any. */
+  sitSpotId?: string;
 }
 
 /** Persistent player profile — Stage 4+ (user account system). */

@@ -1,20 +1,28 @@
 // Cozy Creatures - Room Tests
 //
-// Depends on: rooms/Room.ts, @cozy/shared (Player, RoomConfig)
+// Depends on: rooms/Room.ts, @cozy/shared (Player, RoomConfig, RoomEnvironment)
 // Used by:    test runner
 
 import { describe, it, expect } from "vitest";
 import { Room } from "./Room.js";
-import type { Player, RoomConfig } from "@cozy/shared";
+import type { Player, RoomConfig, RoomEnvironment } from "@cozy/shared";
 
-function makeRoom(overrides?: Partial<RoomConfig>): Room {
+const TEST_ENVIRONMENT: RoomEnvironment = {
+  bounds: { minX: -10, maxX: 10, minZ: -10, maxZ: 10 },
+  sitSpots: [
+    { id: "spot-1", position: { x: 2, y: 0, z: 3 }, rotation: 0, label: "Chair" },
+    { id: "spot-2", position: { x: -2, y: 0, z: -3 }, rotation: Math.PI, label: "Bench" },
+  ],
+};
+
+function makeRoom(overrides: Partial<RoomConfig> = {}): Room {
   return new Room({
-    id: "test-room",
-    name: "Test Room",
-    theme: "test",
-    maxPlayers: 20,
-    description: "A test room",
-    ...overrides,
+    id: overrides.id ?? "test-room",
+    name: overrides.name ?? "Test Room",
+    theme: overrides.theme ?? "test",
+    maxPlayers: overrides.maxPlayers ?? 20,
+    description: overrides.description ?? "A test room",
+    environment: overrides.environment ?? TEST_ENVIRONMENT,
   });
 }
 
@@ -166,6 +174,72 @@ describe("Room", () => {
 
     it("reports zero players when empty", () => {
       expect(makeRoom().getInfo().playerCount).toBe(0);
+    });
+  });
+
+  describe("sit spots", () => {
+    it("allows a player to occupy an empty spot", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      expect(room.occupySitSpot("p1", "spot-1")).toBe(true);
+      expect(room.isSitSpotOccupied("spot-1")).toBe(true);
+    });
+
+    it("rejects occupying an already-taken spot", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      room.addPlayer(makePlayer("p2"));
+      room.occupySitSpot("p1", "spot-1");
+      expect(room.occupySitSpot("p2", "spot-1")).toBe(false);
+    });
+
+    it("sets sitSpotId on the player", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      room.occupySitSpot("p1", "spot-1");
+      expect(room.getPlayer("p1")!.sitSpotId).toBe("spot-1");
+    });
+
+    it("releases previous spot when claiming a new one", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      room.occupySitSpot("p1", "spot-1");
+      room.occupySitSpot("p1", "spot-2");
+      expect(room.isSitSpotOccupied("spot-1")).toBe(false);
+      expect(room.isSitSpotOccupied("spot-2")).toBe(true);
+      expect(room.getPlayer("p1")!.sitSpotId).toBe("spot-2");
+    });
+
+    it("releases spot and clears player sitSpotId", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      room.occupySitSpot("p1", "spot-1");
+      const released = room.releaseSitSpot("p1");
+      expect(released).toBe("spot-1");
+      expect(room.isSitSpotOccupied("spot-1")).toBe(false);
+      expect(room.getPlayer("p1")!.sitSpotId).toBeUndefined();
+    });
+
+    it("returns null when releasing a player who is not sitting", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      expect(room.releaseSitSpot("p1")).toBeNull();
+    });
+
+    it("releases sit spot on removePlayer", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      room.occupySitSpot("p1", "spot-1");
+      room.removePlayer("p1");
+      expect(room.isSitSpotOccupied("spot-1")).toBe(false);
+    });
+
+    it("includes sitSpotId in getState()", () => {
+      const room = makeRoom();
+      room.addPlayer(makePlayer("p1"));
+      room.occupySitSpot("p1", "spot-1");
+      const state = room.getState();
+      expect(state.players["p1"]?.sitSpotId).toBe("spot-1");
     });
   });
 });

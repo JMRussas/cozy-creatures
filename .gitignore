@@ -70,5 +70,8 @@ apps/client/dist/
 *.db-shm
 *.db-wal
 
+# 3D creature models (commercial assets — not redistributable)
+apps/client/public/assets/creatures/**/*.glb
+
 # Claude Code (local settings)
 .claude/settings.local.json
