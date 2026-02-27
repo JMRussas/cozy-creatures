@@ -1,11 +1,10 @@
 // Cozy Creatures - Collision Detection
 //
 // Pure functions for obstacle collision testing and resolution.
-// Used by both client (movement clamping, click targets) and server
-// (position validation).
+// Used by the client for movement clamping and click targets.
 //
 // Depends on: types/room.ts (Obstacle, CircleObstacle, AABBObstacle, WalkableBounds)
-// Used by:    client (Creature.tsx, ClickPlane.tsx), server (connectionHandler.ts)
+// Used by:    client (Creature.tsx, ClickPlane.tsx)
 
 import type {
   Obstacle,
@@ -116,7 +115,6 @@ export function resolveCollisions(
 
 /**
  * Clamp a position to room bounds AND resolve obstacle collisions.
- * This is the single function both client and server should call.
  */
 export function clampAndResolve(
   px: number,
