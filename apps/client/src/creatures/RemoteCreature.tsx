@@ -15,7 +15,7 @@ import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { DEFAULT_CREATURE, ROOMS, SKINS } from "@cozy/shared";
-import type { RoomId, SkinId } from "@cozy/shared";
+import type { RoomId, RoomConfig, SkinId } from "@cozy/shared";
 import { useRoomStore } from "../stores/roomStore";
 import CreatureModel from "./CreatureModel";
 import type { CreatureModelHandle } from "./CreatureModel";
@@ -74,7 +74,7 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
 
     if (isSitting) {
       // Snap to sit spot position/rotation and play rest animation
-      const roomConfig = roomId && roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
+      const roomConfig: RoomConfig | undefined = roomId && roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
       const sitSpot = roomConfig?.environment.sitSpots.find(
         (s) => s.id === player.sitSpotId,
       );
