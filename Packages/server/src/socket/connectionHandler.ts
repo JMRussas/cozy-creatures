@@ -27,7 +27,7 @@ import type { RoomManager } from "../rooms/RoomManager.js";
 import type { Room } from "../rooms/Room.js";
 import { config } from "../config.js";
 import type { TypedServer, TypedSocket } from "./types.js";
-import { sanitizePosition, stripControlChars, createRateLimiter, clamp } from "./validation.js";
+import { sanitizePosition, stripControlChars, createRateLimiter } from "./validation.js";
 import { sendChatHistory, cleanupChat, clearHistory } from "./chatHandler.js";
 import { cleanupVoice } from "./voiceHandler.js";
 import {
@@ -202,13 +202,15 @@ export function registerConnectionHandler(
 
         const position = sanitizePosition(data.position);
 
-        // Clamp to room bounds
+        // Clamp to room bounds (obstacle collision is client-side UX only —
+        // the server can't know if the player is walking to a sit spot inside
+        // an obstacle zone, so we just enforce the outer bounds here)
         const roomConfig: RoomConfig | undefined =
           roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
         if (roomConfig) {
           const { bounds } = roomConfig.environment;
-          position.x = clamp(position.x, bounds.minX, bounds.maxX);
-          position.z = clamp(position.z, bounds.minZ, bounds.maxZ);
+          position.x = Math.max(bounds.minX, Math.min(bounds.maxX, position.x));
+          position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, position.z));
         }
 
         const room = roomManager.getRoom(roomId);

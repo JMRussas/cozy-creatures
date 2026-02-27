@@ -8,14 +8,14 @@
 // Depends on: @react-three/fiber, three, stores/playerStore, stores/roomStore,
 //             stores/skinStore, CreatureModel, CreatureFallback, CreatureShadow,
 //             ChatBubble, SpeakingIndicator, AudioRangeRing, config, utils/math,
-//             @cozy/shared (ROOMS, SKINS, SIT_SPOT_ARRIVAL_THRESHOLD),
+//             @cozy/shared (ROOMS, SKINS, clampAndResolve),
 //             networking/socket
 // Used by:    scene/IsometricScene
 
 import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { ROOMS, SKINS } from "@cozy/shared";
+import { ROOMS, SKINS, clampAndResolve } from "@cozy/shared";
 import type { RoomId, SkinId, RoomConfig } from "@cozy/shared";
 import { usePlayerStore } from "../stores/playerStore";
 import { useRoomStore } from "../stores/roomStore";
@@ -58,10 +58,11 @@ export default function Creature() {
     const store = usePlayerStore.getState();
     const roomId = useRoomStore.getState().roomId;
 
-    // Get room bounds
+    // Get room bounds and obstacles
     const roomConfig: RoomConfig | undefined =
       roomId && roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
     const bounds = roomConfig?.environment.bounds;
+    const obstacles = roomConfig?.environment.obstacles;
 
     // --- Sit/stand transition detection ---
     if (store.isSitting && !wasSitting.current) {
@@ -70,18 +71,19 @@ export default function Creature() {
         (s) => s.id === store.sitSpotId,
       );
       if (sitSpot) {
-        group.position.set(sitSpot.position.x, 0, sitSpot.position.z);
+        group.position.set(sitSpot.position.x, sitSpot.position.y, sitSpot.position.z);
         group.rotation.y = sitSpot.rotation;
-        store.setPosition({ x: sitSpot.position.x, y: 0, z: sitSpot.position.z });
+        store.setPosition(sitSpot.position);
       }
-      modelRef.current?.setAnimation("rest");
+      modelRef.current?.setAnimation(sitSpot?.animation ?? "rest");
       wasSitting.current = true;
       return;
     }
 
     if (!store.isSitting && wasSitting.current) {
-      // Just stood up — emit player:stand and resume idle
+      // Just stood up — emit player:stand, reset Y to ground, resume idle
       socket.emit("player:stand");
+      group.position.y = 0;
       modelRef.current?.setAnimation("idle");
       wasSitting.current = false;
     }
@@ -106,10 +108,13 @@ export default function Creature() {
       const step = Math.min(MOVE_SPEED * delta, distance);
       currentPos.addScaledVector(direction.current, step);
 
-      // Clamp to room bounds
-      if (bounds) {
-        currentPos.x = Math.max(bounds.minX, Math.min(bounds.maxX, currentPos.x));
-        currentPos.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, currentPos.z));
+      // Clamp to room bounds + obstacle collision
+      if (bounds && obstacles) {
+        // Skip obstacle collision when walking to a sit spot (creature needs to reach it)
+        const useObstacles = store.pendingSitId ? [] : obstacles;
+        const resolved = clampAndResolve(currentPos.x, currentPos.z, bounds, useObstacles);
+        currentPos.x = resolved.x;
+        currentPos.z = resolved.z;
       }
 
       // Face movement direction (exponential smoothing — frame-rate independent)

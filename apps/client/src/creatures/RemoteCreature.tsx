@@ -15,7 +15,7 @@ import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { DEFAULT_CREATURE, ROOMS, SKINS } from "@cozy/shared";
-import type { RoomId, SkinId } from "@cozy/shared";
+import type { RoomId, RoomConfig, SkinId } from "@cozy/shared";
 import { useRoomStore } from "../stores/roomStore";
 import CreatureModel from "./CreatureModel";
 import type { CreatureModelHandle } from "./CreatureModel";
@@ -74,16 +74,16 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
 
     if (isSitting) {
       // Snap to sit spot position/rotation and play rest animation
-      const roomConfig = roomId && roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
+      const roomConfig: RoomConfig | undefined = roomId && roomId in ROOMS ? ROOMS[roomId as RoomId] : undefined;
       const sitSpot = roomConfig?.environment.sitSpots.find(
         (s) => s.id === player.sitSpotId,
       );
       if (sitSpot) {
-        group.position.set(sitSpot.position.x, 0, sitSpot.position.z);
+        group.position.set(sitSpot.position.x, sitSpot.position.y, sitSpot.position.z);
         group.rotation.y = sitSpot.rotation;
       }
       if (!wasSitting.current) {
-        modelRef.current?.setAnimation("rest");
+        modelRef.current?.setAnimation(sitSpot?.animation ?? "rest");
         wasSitting.current = true;
         // Reset hysteresis so we don't flicker on stand
         movingFrames.current = 0;
@@ -94,8 +94,9 @@ export default function RemoteCreature({ playerId }: RemoteCreatureProps) {
       return;
     }
 
-    // Just stood up — resume idle
+    // Just stood up — reset Y to ground, resume idle
     if (wasSitting.current) {
+      group.position.y = 0;
       wasSitting.current = false;
       modelRef.current?.setAnimation("idle");
     }

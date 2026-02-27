@@ -33,7 +33,29 @@ export interface SitSpot {
   rotation: number;
   /** Display label shown on hover (e.g. "Table", "Bench"). */
   label: string;
+  /** Animation to play when sitting (defaults to "rest"). */
+  animation?: string;
 }
+
+/** Circular obstacle (tables, pillows, rotated sofas). */
+export interface CircleObstacle {
+  type: "circle";
+  x: number;
+  z: number;
+  radius: number;
+}
+
+/** Axis-aligned box obstacle (bars, couches, benches). */
+export interface AABBObstacle {
+  type: "aabb";
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/** A ground-level furniture collision shape. */
+export type Obstacle = CircleObstacle | AABBObstacle;
 
 /** Per-room environment data used by the client to render the 3D scene. */
 export interface RoomEnvironment {
@@ -41,6 +63,8 @@ export interface RoomEnvironment {
   bounds: WalkableBounds;
   /** Interactive sit spots in this room. */
   sitSpots: SitSpot[];
+  /** Ground-level furniture collision shapes. */
+  obstacles: Obstacle[];
 }
 
 /** Static room definition used in the ROOMS constant. */

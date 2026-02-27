@@ -1,23 +1,22 @@
 // Cozy Creatures - Click Plane
 //
 // Invisible ground plane for click-to-move input. Clamps the click target
-// to the room's walkable bounds.
+// to the room's walkable bounds and resolves obstacle collisions.
 //
-// Depends on: @cozy/shared (WalkableBounds), stores/playerStore
+// Depends on: @cozy/shared (WalkableBounds, Obstacle, clampAndResolve),
+//             stores/playerStore
 // Used by:    scene/environments/CozyCafe, RooftopGarden, StarlightLounge
 
-import type { WalkableBounds } from "@cozy/shared";
+import type { WalkableBounds, Obstacle } from "@cozy/shared";
+import { clampAndResolve } from "@cozy/shared";
 import { usePlayerStore } from "../../stores/playerStore";
 
 interface ClickPlaneProps {
   bounds: WalkableBounds;
+  obstacles: readonly Obstacle[];
 }
 
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
-
-export default function ClickPlane({ bounds }: ClickPlaneProps) {
+export default function ClickPlane({ bounds, obstacles }: ClickPlaneProps) {
   const setTarget = usePlayerStore((s) => s.setTarget);
   const setSitting = usePlayerStore((s) => s.setSitting);
 
@@ -31,8 +30,7 @@ export default function ClickPlane({ bounds }: ClickPlaneProps) {
       position={[0, -0.01, 0]}
       onPointerDown={(e) => {
         e.stopPropagation();
-        const x = clamp(e.point.x, bounds.minX, bounds.maxX);
-        const z = clamp(e.point.z, bounds.minZ, bounds.maxZ);
+        const { x, z } = clampAndResolve(e.point.x, e.point.z, bounds, obstacles);
 
         // Stand up if sitting, and cancel any pending sit walk
         const { isSitting, pendingSitId } = usePlayerStore.getState();

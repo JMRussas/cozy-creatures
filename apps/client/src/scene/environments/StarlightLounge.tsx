@@ -190,7 +190,7 @@ export default function StarlightLounge() {
   return (
     <>
       <RoomLighting theme="starlight-lounge" />
-      <ClickPlane bounds={ENV.bounds} />
+      <ClickPlane bounds={ENV.bounds} obstacles={ENV.obstacles} />
 
       {/* Dark background color */}
       <color attach="background" args={["#0a0520"]} />

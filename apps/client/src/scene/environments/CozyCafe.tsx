@@ -61,6 +61,51 @@ function BarCounter() {
   );
 }
 
+/** Small chair with seat and back, rotated to face a direction. */
+function Chair({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      {/* Seat */}
+      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.4, 0.05, 0.4]} />
+        <meshStandardMaterial color="#6d4c2e" roughness={0.85} />
+      </mesh>
+      {/* Back rest (-Z in local space, faces away from table) */}
+      <mesh position={[0, 0.45, -0.17]} castShadow>
+        <boxGeometry args={[0.4, 0.25, 0.05]} />
+        <meshStandardMaterial color="#5d3a1a" roughness={0.9} />
+      </mesh>
+      {/* Legs */}
+      {[-0.15, 0.15].map((x) =>
+        [-0.15, 0.15].map((z) => (
+          <mesh key={`${x}-${z}`} position={[x, 0.14, z]} castShadow>
+            <boxGeometry args={[0.04, 0.28, 0.04]} />
+            <meshStandardMaterial color="#5d3a1a" roughness={0.9} />
+          </mesh>
+        )),
+      )}
+    </group>
+  );
+}
+
+/** Bar stool — cylinder seat on a single leg. */
+function BarStool({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Seat */}
+      <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.18, 0.18, 0.04, 12]} />
+        <meshStandardMaterial color="#6d4c2e" roughness={0.85} />
+      </mesh>
+      {/* Leg */}
+      <mesh position={[0, 0.225, 0]} castShadow>
+        <cylinderGeometry args={[0.04, 0.04, 0.45, 8]} />
+        <meshStandardMaterial color="#5d3a1a" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
 /** Hanging pendant light (emissive sphere). */
 function PendantLight({ position }: { position: [number, number, number] }) {
   return (
@@ -91,7 +136,7 @@ export default function CozyCafe() {
   return (
     <>
       <RoomLighting theme="cozy-cafe" />
-      <ClickPlane bounds={ENV.bounds} />
+      <ClickPlane bounds={ENV.bounds} obstacles={ENV.obstacles} />
 
       {/* Ground — warm wood floor */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow position={[0, 0, 0]}>
@@ -109,12 +154,28 @@ export default function CozyCafe() {
       <Table position={[-3, 0, -2]} />
       <Table position={[3, 0, -2]} />
 
+      {/* Chairs around table 1 (-3, -2) */}
+      <Chair position={[-3, 0, -2.85]} rotation={0} />
+      <Chair position={[-3, 0, -1.15]} rotation={Math.PI} />
+      <Chair position={[-2.15, 0, -2]} rotation={-Math.PI / 2} />
+      <Chair position={[-3.85, 0, -2]} rotation={Math.PI / 2} />
+
+      {/* Chairs around table 2 (3, -2) */}
+      <Chair position={[3, 0, -2.85]} rotation={0} />
+      <Chair position={[3, 0, -1.15]} rotation={Math.PI} />
+      <Chair position={[3.85, 0, -2]} rotation={-Math.PI / 2} />
+      <Chair position={[2.15, 0, -2]} rotation={Math.PI / 2} />
+
       {/* Coffee cups on tables */}
       <CoffeeCup position={[-2.8, 0.6, -1.8]} />
       <CoffeeCup position={[3.2, 0.6, -2.2]} />
 
       {/* Bar counter */}
       <BarCounter />
+
+      {/* Bar stools */}
+      <BarStool position={[-4.3, 0, 1]} />
+      <BarStool position={[-4.3, 0, 3]} />
 
       {/* Couch area (simple box sofa) */}
       <mesh position={[0, 0.2, 4.3]} castShadow receiveShadow>
