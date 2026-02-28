@@ -457,10 +457,10 @@ Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, cha
 - [ ] Whisper (private) chat channel
 
 #### 7D — Camera Controls
-- [ ] Zoom in/out with +/- buttons (UI overlay)
-- [ ] Scroll wheel zoom support
-- [ ] Zoom level clamped to min/max bounds
-- [ ] Smooth zoom transition (lerp)
+- [x] Zoom in/out with +/- buttons (UI overlay)
+- [x] Scroll wheel zoom support
+- [x] Zoom level clamped to min/max bounds
+- [x] Smooth zoom transition (lerp)
 
 #### 7E — Visual Polish
 - [ ] Brighten Starlight Lounge ambient lighting (currently too dark)

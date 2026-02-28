@@ -4,7 +4,7 @@
 // Uses an orthographic camera at an isometric angle. Supports smooth
 // zoom via scroll wheel and store-driven target zoom.
 //
-// Depends on: @react-three/fiber, @react-three/drei, stores/cameraStore, config
+// Depends on: @react-three/fiber, @react-three/drei, stores/playerStore, stores/cameraStore, config
 // Used by:    IsometricScene
 
 import { useRef, useEffect } from "react";
