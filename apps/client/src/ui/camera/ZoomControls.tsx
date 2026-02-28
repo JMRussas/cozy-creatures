@@ -1,19 +1,26 @@
 // Cozy Creatures - Zoom Controls
 //
 // HUD overlay with +/- zoom buttons and keyboard shortcuts.
-// Reads target zoom from playerStore and calls zoomIn/zoomOut actions.
+// Reads target zoom from cameraStore and calls zoomIn/zoomOut actions.
 //
-// Depends on: stores/playerStore, config (CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX)
+// Depends on: stores/cameraStore, config (CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX)
 // Used by:    App.tsx (InRoomView HUD)
 
 import { useEffect } from "react";
-import { usePlayerStore } from "../stores/playerStore";
-import { CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX } from "../config";
+import { useCameraStore } from "../../stores/cameraStore";
+import { CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX } from "../../config";
+
+/** Returns true if the event target is an element that accepts text input. */
+function isTextInput(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
 
 export default function ZoomControls() {
-  const targetZoom = usePlayerStore((s) => s.targetZoom);
-  const zoomIn = usePlayerStore((s) => s.zoomIn);
-  const zoomOut = usePlayerStore((s) => s.zoomOut);
+  const targetZoom = useCameraStore((s) => s.targetZoom);
+  const zoomIn = useCameraStore((s) => s.zoomIn);
+  const zoomOut = useCameraStore((s) => s.zoomOut);
 
   const atMax = targetZoom >= CAMERA_ZOOM_MAX;
   const atMin = targetZoom <= CAMERA_ZOOM_MIN;
@@ -21,16 +28,14 @@ export default function ZoomControls() {
   // Keyboard shortcuts: +/= to zoom in, - to zoom out
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // Don't capture when typing in form elements
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isTextInput(e.target)) return;
 
       if (e.key === "+" || e.key === "=") {
         e.preventDefault();
-        usePlayerStore.getState().zoomIn();
+        useCameraStore.getState().zoomIn();
       } else if (e.key === "-") {
         e.preventDefault();
-        usePlayerStore.getState().zoomOut();
+        useCameraStore.getState().zoomOut();
       }
     }
     window.addEventListener("keydown", onKeyDown);

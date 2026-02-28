@@ -5,7 +5,7 @@
 // name, creature, and room selection to localStorage.
 //
 // Depends on: scene/IsometricScene, stores/roomStore, stores/skinStore,
-//             ui/ChatPanel, ui/VoiceControls, ui/ZoomControls, ui/SkinShop,
+//             ui/ChatPanel, ui/VoiceControls, ui/camera/ZoomControls, ui/SkinShop,
 //             ui/rooms/RoomBrowser, ui/transitions/RoomTransition,
 //             ui/CreaturePicker, ui/CreaturePreview,
 //             networking/useVoice, @cozy/shared
@@ -30,7 +30,7 @@ import RoomBrowser from "./ui/rooms/RoomBrowser";
 import RoomTransition from "./ui/transitions/RoomTransition";
 import CreaturePicker from "./ui/creatures/CreaturePicker";
 import CreaturePreview from "./ui/creatures/CreaturePreview";
-import ZoomControls from "./ui/ZoomControls";
+import ZoomControls from "./ui/camera/ZoomControls";
 import useVoice from "./networking/useVoice";
 
 // --- localStorage keys ---

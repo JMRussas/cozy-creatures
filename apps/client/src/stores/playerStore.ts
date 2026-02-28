@@ -2,33 +2,13 @@
 //
 // Zustand store for local player state: position, target, creature type, sit state.
 //
-// Depends on: zustand, @cozy/shared (Position, CreatureTypeId, DEFAULT_CREATURE), config
+// Depends on: zustand, @cozy/shared (Position, CreatureTypeId, DEFAULT_CREATURE)
 // Used by:    Creature, CameraRig, Ground, NetworkSync, roomStore,
-//             scene/environments/ClickPlane, scene/environments/SitSpotMarker,
-//             ui/ZoomControls
+//             scene/environments/ClickPlane, scene/environments/SitSpotMarker
 
 import { create } from "zustand";
 import type { Position, CreatureTypeId } from "@cozy/shared";
 import { DEFAULT_CREATURE } from "@cozy/shared";
-import {
-  CAMERA_ZOOM,
-  CAMERA_ZOOM_MIN,
-  CAMERA_ZOOM_MAX,
-  CAMERA_ZOOM_STEP,
-} from "../config";
-
-const LS_ZOOM = "cozy-creatures:zoom";
-
-function loadZoom(): number {
-  try {
-    const v = localStorage.getItem(LS_ZOOM);
-    if (v) {
-      const n = Number(v);
-      if (Number.isFinite(n)) return Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, n));
-    }
-  } catch { /* localStorage unavailable */ }
-  return CAMERA_ZOOM;
-}
 
 export interface PlayerState {
   position: Position;
@@ -42,8 +22,6 @@ export interface PlayerState {
   sitSpotId: string | null;
   /** Sit spot the player is walking toward (claimed on arrival). */
   pendingSitId: string | null;
-  /** Target camera zoom level (camera lerps toward this). */
-  targetZoom: number;
 }
 
 interface PlayerActions {
@@ -54,9 +32,6 @@ interface PlayerActions {
   setCreatureType: (type: CreatureTypeId) => void;
   setSitting: (sitSpotId: string | null) => void;
   setPendingSit: (sitSpotId: string | null) => void;
-  setTargetZoom: (zoom: number) => void;
-  zoomIn: () => void;
-  zoomOut: () => void;
   reset: () => void;
 }
 
@@ -71,7 +46,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
   isSitting: false,
   sitSpotId: null,
   pendingSitId: null,
-  targetZoom: loadZoom(),
 
   setTarget: (x, z) => set({ target: { x, y: 0, z }, isMoving: true }),
   setPosition: (pos) => set({ position: pos }),
@@ -85,10 +59,6 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
         : { isSitting: false, sitSpotId: null, pendingSitId: null },
     ),
   setPendingSit: (sitSpotId) => set({ pendingSitId: sitSpotId }),
-  setTargetZoom: (zoom) => set({ targetZoom: Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, zoom)) }),
-  zoomIn: () => set((s) => ({ targetZoom: Math.min(CAMERA_ZOOM_MAX, s.targetZoom + CAMERA_ZOOM_STEP) })),
-  zoomOut: () => set((s) => ({ targetZoom: Math.max(CAMERA_ZOOM_MIN, s.targetZoom - CAMERA_ZOOM_STEP) })),
-  // Note: reset() does NOT reset targetZoom — zoom persists across room switches.
   reset: () =>
     set({
       position: { ...INITIAL_POSITION },
@@ -101,12 +71,3 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set) => ({
       pendingSitId: null,
     }),
 }));
-
-// Persist zoom preference to localStorage
-let prevZoom = usePlayerStore.getState().targetZoom;
-usePlayerStore.subscribe((state) => {
-  if (state.targetZoom !== prevZoom) {
-    prevZoom = state.targetZoom;
-    try { localStorage.setItem(LS_ZOOM, String(state.targetZoom)); } catch { /* ignore */ }
-  }
-});

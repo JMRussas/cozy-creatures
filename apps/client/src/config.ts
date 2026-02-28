@@ -4,7 +4,7 @@
 // to keep magic numbers centralized per project conventions.
 //
 // Depends on: @cozy/shared (CreatureTypeId)
-// Used by:    creatures/*, scene/*, stores/playerStore, stores/roomStore, ui/ZoomControls
+// Used by:    creatures/*, scene/*, stores/cameraStore, stores/roomStore, ui/camera/ZoomControls
 
 import type { CreatureTypeId } from "@cozy/shared";
 
@@ -42,7 +42,7 @@ export const CAMERA_OFFSET = { x: 10, y: 10, z: 10 } as const;
 /** Camera follow lerp speed. */
 export const CAMERA_LERP_SPEED = 3;
 
-/** Camera orthographic zoom level. */
+/** Default camera zoom level (used when no localStorage value exists). */
 export const CAMERA_ZOOM = 40;
 
 /** Minimum zoom level (zoomed out). */
