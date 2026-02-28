@@ -389,44 +389,51 @@ Players can browse skins, equip them, and see each other's skins in real time. S
 
 ---
 
-## STAGE 6 — Hangout Spaces
+## STAGE 6 — Hangout Spaces ✅
 > **Goal:** Multiple themed rooms players can browse and join.
-> **Duration estimate:** 3-5 days
 
 ### Tasks
 
 #### 6A — Room System
-- [ ] Room browser: list of available rooms with player counts + thumbnails
-- [ ] Join room → loads that room's 3D environment
-- [ ] Room capacity limits (configurable per room)
-- [ ] Player count shown in room browser (live via Socket.io)
-- [ ] Smooth transition between rooms (fade out → load → fade in)
+- [x] Room browser: inline (join screen) + modal (in-game), live player counts via `room:player-count`
+- [x] Join room → loads that room's 3D environment (`RoomEnvironment` theme router)
+- [x] Room capacity limits (configurable per room via `maxPlayers`)
+- [x] Player count shown in room browser (live via Socket.io)
+- [x] Smooth transition between rooms (fade out → emit switch → reset → fade in)
 
-#### 6B — Environment Art (parallel with code)
-- [ ] Design 3 starter environments:
-  - **Cozy Cafe** — warm lighting, tiny tables, coffee cup props
-  - **Rooftop Garden** — plants, fairy lights, sunset sky
-  - **Starlight Lounge** — dark/purple, constellation floor, glowing props
-- [ ] Each environment: ground mesh, props, skybox/background, ambient sound
-- [ ] Export as glTF, optimize for web (< 50K triangles per room)
-- [ ] Walkable area definition (navigation mesh or simple boundary)
+#### 6B — Environment Art
+- [x] 3 procedural 3D environments (all R3F primitives, no glTF):
+  - **Cozy Cafe** — warm lighting, tables with chairs, bar counter + stools, couch, pendant lights, coffee cups, rug
+  - **Rooftop Garden** — plants, fairy lights, sunset sky (drei Sky), benches, swing, cushion
+  - **Starlight Lounge** — dark purple, constellation floor, glowing orbs, sofas, bar counter
+- [x] Per-room lighting (`RoomLighting.tsx`) with warm/natural/cool presets
+- [x] Walkable bounds clamping per room
 
 #### 6C — Room Interaction Points
-- [ ] Sit spots: designated positions where creatures can sit (bench, cushion)
-- [ ] Click a sit spot → creature walks there and plays sit animation
-- [ ] Interaction prompts (subtle highlight when hovering near a spot)
+- [x] Sit spots: per-room data with position, rotation, label, and optional animation
+- [x] `SitSpotMarker` — interactive circles at sit spot positions, walk-to-sit on click
+- [x] Server-validated occupancy (`Room.sitSpotOccupants`, `occupySitSpot`, `releaseSitSpot`)
+- [x] Per-spot animations (eat at tables, idle at bar, rest on couch)
+
+#### 6D — Furniture Collision
+- [x] Circle + AABB obstacle shapes per room (`collision.ts`)
+- [x] Multi-pass push-out resolution (`resolveCollisions`, `clampAndResolve`)
+- [x] Client-side collision in movement loop + click plane
+- [x] Obstacle bypass when walking to sit spots (creature needs to reach furniture)
+- [x] Cafe furniture geometry: chairs around tables, bar stools, 3 couch seats
 
 ### Deliverable
-Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, chat. Different rooms feel distinct.
+Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, chat. Different rooms feel distinct. Creatures can't walk through furniture.
 
 ### Parallelism
-- **6A (room system code)** and **6B (environment art)** are fully parallel
-- **6C (interactions)** depends on both 6A and 6B
+- **6A (room system code)** and **6B (environment art)** ran fully parallel
+- **6C (interactions)** depended on both 6A and 6B
+- **6D (collision)** depended on 6B (obstacle positions from environment geometry)
 
 ---
 
 ## STAGE 7 — Social Features & Polish
-> **Goal:** Friends, profiles, emotes, and visual polish.
+> **Goal:** Friends, profiles, emotes, camera controls, and visual polish.
 > **Duration estimate:** 3-5 days
 
 ### Tasks
@@ -449,7 +456,14 @@ Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, cha
 - [ ] "Join friend" button → teleport to their room
 - [ ] Whisper (private) chat channel
 
-#### 7D — Visual Polish
+#### 7D — Camera Controls
+- [ ] Zoom in/out with +/- buttons (UI overlay)
+- [ ] Scroll wheel zoom support
+- [ ] Zoom level clamped to min/max bounds
+- [ ] Smooth zoom transition (lerp)
+
+#### 7E — Visual Polish
+- [ ] Brighten Starlight Lounge ambient lighting (currently too dark)
 - [ ] Ambient particles per room (floating leaves, fireflies, steam)
 - [ ] Footstep puffs when creatures walk
 - [ ] Smooth UI transitions (panel slide-in, fade)
@@ -457,8 +471,8 @@ Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, cha
 - [ ] Day/night cycle or time-of-day lighting shifts
 
 ### Parallelism
-- **7A (emotes)**, **7B (profiles)**, **7C (friends)** are all independent
-- **7D (polish)** can happen continuously alongside everything else
+- **7A (emotes)**, **7B (profiles)**, **7C (friends)**, **7D (camera)** are all independent
+- **7E (polish)** can happen continuously alongside everything else
 
 ---
 
@@ -497,7 +511,7 @@ Room browser shows 3 themed rooms. Click to join. Walk around, sit at spots, cha
 ```
 TIMELINE (not to scale)
 ═══════════════════════════════════════════════════════════
-Stages 0-5 complete. 352 tests passing across 33 files.
+Stages 0-6 complete. 403 tests passing across 36 files.
 
 Stage 0: Foundation ✅
   ████
@@ -536,20 +550,22 @@ Stage 5: Skin & Collection System ✅
   ├── 5E: Backend (SQLite inventory, REST API, socket) ──┘
   └── 5F: Client UI (SkinShop, SkinInventory, skinStore)
 
-─── COMPLETED ABOVE ─── PLANNED BELOW ───────────────────
-
-Stage 6: Hangout Spaces
+Stage 6: Hangout Spaces ✅
   ████████████████
-  ├── 6A: Room code ──────┐
-  ├── 6B: Room art ───────┘ (parallel)
-  └── 6C: Interactions
+  ├── 6A: Room system (browser, switching, transitions)
+  ├── 6B: Room art (3 procedural environments) ──┐ parallel
+  ├── 6C: Sit spots (server-validated, per-spot animations)
+  └── 6D: Furniture collision (circle + AABB obstacles)
+
+─── COMPLETED ABOVE ─── PLANNED BELOW ───────────────────
 
 Stage 7: Social + Polish (sub-tasks all parallel)
   ████████████████████
   ├── 7A: Emotes
   ├── 7B: Profiles
   ├── 7C: Friends
-  └── 7D: Polish (ongoing)
+  ├── 7D: Camera controls (zoom in/out buttons + scroll wheel)
+  └── 7E: Polish (Starlight Lounge brightness, particles, sounds)
 
 Stage 8: Mini-Games
   ████████████████
@@ -696,4 +712,4 @@ The **minimum viable product** that you could show someone:
 - Other people in the room are visible and moving
 - You can chat via text panel and see chat bubbles
 
-**MVP complete.** Stages 0-3 shipped. Currently at Stage 5 complete with voice chat, 6 creature models, and a full skin/collection system (30 skins, HSL shader, accessories, particles, inventory UI).
+**MVP complete.** Stages 0-6 shipped. 3 themed rooms with procedural environments, furniture collision, sit spots with per-spot animations, room browser, and room switching. Voice chat, 6 creature models, 30 skins with HSL shader/accessories/particles.
