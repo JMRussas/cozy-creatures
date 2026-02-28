@@ -118,6 +118,10 @@ LiveKit requires Docker: `docker compose up -d` (dev key pair: `devkey:secret`).
 
 Vite proxies `/api` and `/socket.io` to the server in dev mode.
 
+## Development Process
+
+Staged feature development with structured code review after each stage. Every stage commit includes a review pass — Stage 3 addressed 40 findings, Stages 1-2 resolved 45. Features ship via pull request; [PR #1](https://github.com/JMRussas/cozy-creatures/pull/1) shows the review cycle: a high-priority rubber-banding bug found during review (server enforcing collision that client intentionally bypassed for pathfinding), diagnosed, and fixed with architectural rationale. 402 tests across 36 files, CI running lint and test on every push.
+
 ## Project Structure
 
 ```
